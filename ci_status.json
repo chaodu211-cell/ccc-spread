@@ -1,27 +1,28 @@
 {
- "as_of": "2026-10-20",
- "generated": "2026-10-23 07:56",
+ "as_of": "2026-10-22",
+ "generated": "2026-10-23 08:08",
  "fetch": {
   "ccc_oas": {
    "series": "BAMLH0A3HYC",
    "local_last": "2026-10-20",
-   "tried": {
-    "FRED 网页": "curl 退出码 92 curl: (92) HTTP/2 stream 1 was not closed cleanly: INTERNAL_ERROR (err 2)；urllib TimeoutError: The read operation timed out"
-   },
-   "ok": false,
-   "last": "2026-10-20",
-   "error": "FRED 网页：curl 退出码 92 curl: (92) HTTP/2 stream 1 was not closed cleanly: INTERNAL_ERROR (err 2)；urllib TimeoutError: The read operation timed out"
+   "tried": {},
+   "ok": true,
+   "source": "FRED API",
+   "last": "2026-10-21",
+   "added": 1,
+   "changed": 0,
+   "src_last": "2026-10-21"
   },
   "nasdaq": {
    "series": "NASDAQCOM",
    "local_last": "2026-10-20",
-   "tried": {
-    "FRED 网页": "curl 退出码 92 curl: (92) HTTP/2 stream 1 was not closed cleanly: INTERNAL_ERROR (err 2)；urllib TimeoutError: The read operation timed out",
-    "Yahoo": "curl 退出码 22 curl: (22) The requested URL returned error: 429；urllib HTTPError: HTTP Error 429: Too Many Requests"
-   },
-   "ok": false,
-   "last": "2026-10-20",
-   "error": "FRED 网页：curl 退出码 92 curl: (92) HTTP/2 stream 1 was not closed cleanly: INTERNAL_ERROR (err 2)；urllib TimeoutError: The read operation timed out；Yahoo：curl 退出码 22 curl: (22) The requested URL returned error: 429；urllib HTTPError: HTTP Error 429: Too Many Requests"
+   "tried": {},
+   "ok": true,
+   "source": "FRED API",
+   "last": "2026-10-22",
+   "added": 2,
+   "changed": 0,
+   "src_last": "2026-10-22"
   }
  },
  "top_today": false,
