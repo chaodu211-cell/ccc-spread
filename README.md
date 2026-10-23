@@ -93,7 +93,8 @@ MA150 多报 3 次、多抓到 1 个顶，但亮灯后 63 日平均 +5.3%，比�
 | `data/ccc_oas.csv` | CCC 利差（%），2016-10-24 起；ICE 日历，含美股休市日 |
 | `data/nasdaq.csv` | 纳斯达克综合指数收盘，2016-10-24 起 |
 
-- 来源：FRED `BAMLH0A3HYC`、`NASDAQCOM`（`fredgraph.csv`，不需要 API key）。FRED 上 ICE 系列只给最近约 3 年，
+- 来源（按顺序试，第一个成功的为准）：FRED 官方 API（要免费 key，可选）→ FRED 网页下载 `fredgraph.csv`；
+  纳指另有 Yahoo `^IXIC` 兜底。CCC 利差只有 FRED 一个免费来源。FRED 上 ICE 系列只给最近约 3 年，
   所以**本地数据只增不减**：下载到的日期覆盖同日的旧值（接住修订），下载里没有的老日期原样保留。
   种子数据（2016-10 ~ 2026-10-20）来自 FRED，早期部分取自 JustHodl 保存的 FRED 历史存档。
 - 同一天新旧值相差超过 25% 时整次不并入（多半是下错了序列），页面顶部会提示。
@@ -103,9 +104,28 @@ MA150 多报 3 次、多抓到 1 个顶，但亮灯后 63 日平均 +5.3%，比�
 
 - **本地**：`data/` 只读，新下载的数据写进 `cache/`（不进 git），产物 `dashboard.html`、`run.log` 也不进 git。
   所以这个文件夹如果是 `git clone` 下来的，双击时会先 `git pull`（拿代码与存档数据的更新），不会和本地数据冲突。
-- **GitHub 每日流水线**（`.github/workflows/daily.yml`）：北京时间周二到周六 21:37 跑一次，`python3 update.py --ci`
-  把新数据写回 `data/`，并往 `信号快照.csv` 追加当天的读数与信号——**只追加、不改写**，以后改了规则或数据被修订，
-  当时页面上显示过什么仍有据可查。也可以在 Actions 页面手动运行。
+- **GitHub 每日流水线**（`.github/workflows/daily.yml`）：北京时间周二到周六 21:37 跑一次（改了代码推上去也会跑），
+  `python3 update.py --ci` 把新数据写回 `data/`，并往 `信号快照.csv` 追加当天的读数与信号——**只追加、不改写**，
+  以后改了规则或数据被修订，当时页面上显示过什么仍有据可查。每次运行的下载结果（每个来源成功与否、失败原因）
+  写进 `ci_status.json` 一起提交。也可以在 Actions 页面手动运行。
+
+## 下载不下来怎么办
+
+页面顶部出现黄色的「本次下载失败」时，按下面顺序处理（每个来源的失败原因在 `run.log` 里）：
+
+1. **改用 git clone 的文件夹**（最省事）。GitHub 流水线在美国机房下载，基本不受本地网络影响；
+   双击时会先 `git pull` 拿到它更新好的 `data/`，本机连不上 FRED 也能看到最新数据（最多晚一天）。
+   ```bash
+   cd ~/Desktop/模型 && git clone https://github.com/chaodu211-cell/ccc-spread.git
+   ```
+   仓库是私有的话，本机要登录过 GitHub（GitHub Desktop，或 `gh auth login`）。
+2. **申请 FRED API key**（免费，几分钟）：https://fredaccount.stlouisfed.org/apikeys 注册后生成一个 32 位的 key，
+   - 本地：在本文件夹新建 `fred_api_key.txt`，里面只写这一行 key（这个文件不进 git）；
+   - GitHub：仓库 Settings → Secrets and variables → Actions → New repository secret，名字 `FRED_API_KEY`。
+   FRED 的网页下载对脚本时好时坏（超时、直接断开都见过），API 是给程序用的正门，稳得多。
+3. **代理**：浏览器能打开 https://fred.stlouisfed.org 、终端里却下载失败，多半是代理只对浏览器生效。
+   脚本会自动读 macOS 的系统代理（日志第一行会显示「系统代理：…」）；用的是不设系统代理的工具时，
+   在终端里先 `export https_proxy=http://127.0.0.1:端口` 再运行 `python3 update.py`。
 
 命令行用法：
 
@@ -121,8 +141,10 @@ python3 test_signals.py       # 自检
 |---|---|
 | `更新并打开.command` | **日常用这个**，双击即可 |
 | `update.py` | 一条龙：下载 → 重算 → 生成页面（`--ci` 写回 data/ 并追加快照） |
-| `fetch.py` | 从 FRED 下载并合并（curl 优先，退回 urllib） |
+| `fetch.py` | 多来源下载并合并（FRED API → FRED 网页 → Yahoo；curl 优先，退回 urllib，自动走系统代理） |
 | `signals.py` | 指标、两条规则、事后评估——**参数都在顶部** |
 | `make_page.py` `template.html` | 生成单文件网页（图是页面自己画的，离线也能打开） |
 | `test_signals.py` | 计算核心与下载解析的自检 |
 | `信号快照.csv` | 每日信号快照（流水线写，首次运行后出现） |
+| `ci_status.json` | 流水线最近一次的下载结果与失败原因（流水线写） |
+| `fred_api_key.txt` | 可选，自己建，放 FRED API key（不进 git） |

@@ -1,12 +1,19 @@
 name: daily
 
-# 每个美股交易日的次日从 FRED 拉 CCC 利差与纳指 → 重算 → 把 data/ 与 信号快照.csv 提交回 main。
-# 本地双击「更新并打开.command」时会先 git pull，拿到这里更新过的 data/。
+# 每个美股交易日的次日在美国机房拉 CCC 利差与纳指 → 重算 → 把 data/、信号快照.csv、ci_status.json 提交回 main。
+# 本地双击「更新并打开.command」会先 git pull，所以本机连不上 FRED 时也能拿到这里更新好的数据。
+#
+# 可选：仓库 Settings → Secrets and variables → Actions 里加一个 FRED_API_KEY（免费申请，见 README），
+# 走 FRED 官方 API，比网页下载稳。
 on:
   schedule:
     # 13:37 UTC = 北京 21:37 = 美东 09:37（夏令时）/ 08:37（冬令时）。ICE 利差在 FRED 上一般晚一天发布，
     # 这时前一交易日的数已齐。周二到周六各跑一次，正好覆盖周一到周五。分钟取 37 避开整点排队。
     - cron: "37 13 * * 2-6"
+  # 改了代码就跑一次（机器人提交的数据文件与文档不触发；GITHUB_TOKEN 的推送本来也不会再触发工作流）
+  push:
+    branches: [main]
+    paths-ignore: ["**.md", "data/**", "信号快照.csv", "ci_status.json"]
   workflow_dispatch:
 
 permissions:
@@ -30,20 +37,34 @@ jobs:
       - name: 下载并重算
         env:
           CCC_SNAPSHOT: "1"
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
         run: python3 update.py --ci
-      - name: 提交数据与快照
+      # ci_status.json 每次都提交（下载失败也提交），记下每个来源成功与否、失败原因——Actions 日志之外留一份可查的诊断
+      - name: 提交数据、快照与运行状态
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898699+github-actions[bot]@users.noreply.github.com"
-          git add data/ 信号快照.csv 2>/dev/null || git add data/
+          git add data/
+          [ -f 信号快照.csv ] && git add 信号快照.csv
+          git add ci_status.json
           if git diff --cached --quiet; then
             echo "没有变化"
             exit 0
           fi
-          AS_OF=$(python3 -c 'import json; print(json.load(open("status.json"))["as_of"])')
+          AS_OF=$(python3 -c 'import json; print(json.load(open("ci_status.json"))["as_of"])')
           git commit -m "数据更新：${AS_OF}"
           for k in 1 2 3; do
             git pull --rebase --quiet && git push && exit 0
             sleep $((k * 5))
           done
           exit 1
+      - name: 下载有失败则标红
+        run: |
+          python3 - <<'PY'
+          import json, sys
+          s = json.load(open("ci_status.json"))["fetch"]
+          bad = {k: v.get("error") for k, v in s.items() if not v.get("ok")}
+          for k, e in bad.items():
+              print("::error::%s 下载失败：%s" % (k, e))
+          sys.exit(1 if bad else 0)
+          PY

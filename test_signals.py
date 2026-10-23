@@ -60,6 +60,22 @@ class TestFetch(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             fetch.parse_fred("<html>error</html>")
 
+    def test_parse_fred_api(self):
+        txt = '{"observations":[{"date":"2026-10-20","value":"13.27"},{"date":"2026-10-21","value":"."}]}'
+        self.assertEqual(fetch.parse_fred_api(txt), {"2026-10-20": 13.27})
+        with self.assertRaises(RuntimeError):
+            fetch.parse_fred_api('{"error_code":400,"error_message":"Bad Request"}')
+
+    def test_parse_yahoo_drops_live_bar(self):
+        # 两根日 K：10-20 已收盘，10-21 盘中（now 落在当日交易时段内）→ 只留 10-20
+        off = -14400
+        t20, t21 = 1760967000, 1761053400            # 2025-10-20 / 21 美东 09:30（UTC 13:30）
+        txt = ('{"chart":{"result":[{"meta":{"gmtoffset":%d,"currentTradingPeriod":{"regular":{"start":%d,"end":%d}}},'
+               '"timestamp":[%d,%d],"indicators":{"quote":[{"close":[26424.82,26300.0]}]}}]}}') % (off, t21, t21 + 23400, t20, t21)
+        self.assertEqual(fetch.parse_yahoo(txt, now=t21 + 3600), {"2025-10-20": 26424.82})
+        self.assertEqual(fetch.parse_yahoo(txt, now=t21 + 86400),             # 收盘以后两根都留
+                         {"2025-10-20": 26424.82, "2025-10-21": 26300.0})
+
     def test_merge(self):
         out, added, changed = fetch.merge({"a": 10.0, "b": 11.0}, {"b": 11.1, "c": 12.0})
         self.assertEqual((out, added, changed), ({"a": 10.0, "b": 11.1, "c": 12.0}, 1, 1))

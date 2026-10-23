@@ -7,3 +7,6 @@ cache/
 dashboard.html
 run.log
 status.json
+
+# FRED API key（可选，只放本地）
+fred_api_key.txt

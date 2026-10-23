@@ -33,7 +33,7 @@ PY="$(command -v python3 2>/dev/null)"
    macOS 自带的命令行工具里就有，装一下即可：
        xcode-select --install
    装完重新双击本文件。"
-echo "Python：$PY（$("$PY" -V 2>&1)）"
+echo "Python：${PY}（$("${PY}" -V 2>&1)）"
 
 # ---------- 2. 若是 git 仓库，先同步 ----------
 if [ -d .git ] && command -v git >/dev/null 2>&1 && git remote get-url origin >/dev/null 2>&1; then
@@ -48,11 +48,11 @@ echo
 
 # ---------- 3. 下载 + 重算 ----------
 set -o pipefail
-"$PY" update.py 2>&1 | tee run.log
+"${PY}" update.py 2>&1 | tee run.log
 STATUS=$?
 set +o pipefail
 echo "────────────────────────────────────────"
-[ $STATUS -eq 0 ] || die "更新失败（退出码 $STATUS）。
+[ "${STATUS}" -eq 0 ] || die "更新失败（退出码 ${STATUS}）。
    上面的日志里有具体原因，也存在同目录的 run.log 里。"
 
 # ---------- 4. 打开网页 ----------

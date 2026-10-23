@@ -65,15 +65,18 @@ def main(argv):
         print("   %s：%s；最近一次 %s" % (name, state, "%s（%d 个交易日前）" % (last["date"], last["ago"]) if last else "无"))
     print("③ 页面已生成：%s" % out)
 
-    with open(os.path.join(HERE, "status.json"), "w", encoding="utf-8") as fh:
+    # 流水线写 ci_status.json（进 git，留诊断）；本地写 status.json（不进 git，免得 git pull 冲突）
+    with open(os.path.join(HERE, "ci_status.json" if ci else "status.json"), "w", encoding="utf-8") as fh:
         json.dump({"as_of": c["date"], "generated": data["generated"], "fetch": status,
                    "top_today": c["top_today"], "bot_today": c["bot_today"], "phase": c["phase"]},
                   fh, ensure_ascii=False, indent=1)
     if ci and os.environ.get("CCC_SNAPSHOT") == "1":
         print("④ 信号快照：%s" % ("追加 " + c["date"] if snapshot(c) else c["date"] + " 已记过，不重复追加"))
-    if ci and status and not any(v.get("ok") for v in status.values()):
-        print("❌ 两个序列都没下载到")
-        return 1
+    failed = [v["series"] for v in status.values() if not v.get("ok")]
+    if failed and not ci and not os.path.isdir(os.path.join(HERE, ".git")):
+        print("提示：%s 没下载到。把这个文件夹换成 git clone 下来的版本，双击时会先从 GitHub 拉流水线每天更新好的数据，"
+              "本机连不上 FRED 也不影响（见 README「下载不下来怎么办」）。" % "、".join(failed))
+    # 流水线里下载失败也返回 0：先把 ci_status.json 提交上去留下诊断，最后一步再判失败
     return 0
 
 
