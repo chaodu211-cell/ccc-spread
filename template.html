@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CCC 利差预警</title>
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f6f6f4; --surface: #fcfcfb; --border: #e4e3df; --grid: #ebeae6;
+  --text: #0b0b0b; --text2: #52514e; --muted: #8a8984;
+  --nas: #2a78d6; --ccc: #eb6834; --ma: #8a8984;
+  --top: #d03b3b; --bot: #0ca30c; --warn-bg: #fff4e5; --warn-ink: #8a5300;
+  --top-bg: #fbeaea; --bot-bg: #e7f6e7;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #121211; --surface: #1a1a19; --border: #2e2e2c; --grid: #262624;
+    --text: #f0efec; --text2: #c3c2b7; --muted: #8f8e88;
+    --nas: #3987e5; --ccc: #d95926; --ma: #8f8e88;
+    --warn-bg: #3a2c12; --warn-ink: #f3c46b; --top-bg: #3a1d1d; --bot-bg: #173117;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #121211; --surface: #1a1a19; --border: #2e2e2c; --grid: #262624;
+  --text: #f0efec; --text2: #c3c2b7; --muted: #8f8e88;
+  --nas: #3987e5; --ccc: #d95926; --ma: #8f8e88;
+  --warn-bg: #3a2c12; --warn-ink: #f3c46b; --top-bg: #3a1d1d; --bot-bg: #173117;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text);
+  font: 15px/1.6 -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 24px 16px 64px; }
+h1 { font-size: 26px; margin: 0 0 4px; font-weight: 650; letter-spacing: .01em; }
+h2 { font-size: 18px; margin: 36px 0 12px; font-weight: 650; }
+.sub { color: var(--text2); font-size: 13.5px; }
+.banner { background: var(--warn-bg); color: var(--warn-ink); border-radius: 10px; padding: 10px 14px; margin: 14px 0 0; font-size: 14px; }
+.cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 20px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; min-width: 0; }
+.card .k { color: var(--text2); font-size: 13px; }
+.card .v { font-size: 26px; font-weight: 650; font-variant-numeric: tabular-nums; margin-top: 2px; }
+.card .h { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+.sig { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+.sig .card { padding: 16px 18px; }
+.sig .title { display: flex; align-items: center; gap: 8px; font-weight: 650; font-size: 16px; }
+.badge { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 2px 10px; font-size: 13px; font-weight: 600; }
+.badge.on-top { background: var(--top-bg); color: var(--top); }
+.badge.on-bot { background: var(--bot-bg); color: var(--bot); }
+.badge.off { background: var(--grid); color: var(--text2); }
+.ico-top { color: var(--top); } .ico-bot { color: var(--bot); }
+.conds { list-style: none; padding: 0; margin: 10px 0 0; font-size: 14px; }
+.conds li { display: flex; gap: 8px; padding: 3px 0; color: var(--text2); }
+.conds li b { font-weight: 600; color: var(--text); }
+.ok { color: var(--text); } .no { color: var(--muted); }
+.mark { width: 18px; flex: none; text-align: center; }
+.last { margin-top: 8px; font-size: 13.5px; color: var(--text2); }
+.toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin: 28px 0 10px; }
+.seg { display: inline-flex; background: var(--surface); border: 1px solid var(--border); border-radius: 9px; padding: 3px; }
+.seg button { border: 0; background: transparent; color: var(--text2); font: inherit; font-size: 13.5px; padding: 4px 12px; border-radius: 7px; cursor: pointer; }
+.seg button.on { background: var(--grid); color: var(--text); font-weight: 600; }
+.panel { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px 6px; margin-top: 12px; position: relative; }
+.panel .ph { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 4px 16px; }
+.panel .pt { font-weight: 600; font-size: 14.5px; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 12.5px; color: var(--text2); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 18px; height: 0; border-top: 2px solid; display: inline-block; }
+.sw.dash { border-top-style: dashed; }
+svg { display: block; width: 100%; overflow: visible; }
+svg text { font-family: inherit; }
+#tip { position: fixed; pointer-events: none; background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  padding: 8px 10px; font-size: 12.5px; line-height: 1.55; box-shadow: 0 4px 16px rgba(0,0,0,.12); display: none; z-index: 9; min-width: 180px; }
+#tip .d { font-weight: 600; margin-bottom: 2px; }
+#tip .row { display: flex; justify-content: space-between; gap: 14px; color: var(--text2); }
+#tip .row b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.tbl { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow-x: auto; }
+th, td { padding: 8px 12px; text-align: right; border-bottom: 1px solid var(--grid); white-space: nowrap; }
+th { color: var(--text2); font-weight: 600; font-size: 12.5px; }
+th:first-child, td:first-child, th:last-child, td:last-child { text-align: left; }
+tr:last-child td { border-bottom: 0; }
+.neg { color: var(--top); } .pos { color: var(--bot); }
+.note { color: var(--text2); font-size: 14px; }
+.note li { margin: 4px 0; }
+.stat { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.stat .card p { margin: 6px 0 0; font-size: 14px; color: var(--text2); }
+.stat .card p b { color: var(--text); }
+@media (max-width: 860px) {
+  .cards { grid-template-columns: 1fr 1fr; }
+  .sig, .stat { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>CCC 垃圾债利差 · 见顶 / 见底预警</h1>
+  <div class="sub" id="sub"></div>
+  <div id="banner"></div>
+
+  <div class="cards" id="cards"></div>
+  <div class="sig" id="sig"></div>
+
+  <div class="toolbar">
+    <div class="seg" id="range">
+      <button data-y="1">1 年</button><button data-y="3">3 年</button><button data-y="5">5 年</button><button data-y="0" class="on">全部</button>
+    </div>
+    <div class="legend">
+      <span><span class="ico-top">▼</span>见顶预警</span>
+      <span><span class="ico-bot">▲</span>见底预警</span>
+      <span style="color:var(--muted)">┆ 事后确认的下跌顶 / 底部</span>
+    </div>
+  </div>
+
+  <div class="panel"><div class="ph"><div class="pt">纳斯达克综合指数</div>
+    <div class="legend"><span><span class="sw" style="border-color:var(--nas)"></span>收盘</span></div></div>
+    <svg id="c-nas"></svg></div>
+  <div class="panel"><div class="ph"><div class="pt">CCC 及以下高收益债利差（OAS，%）</div>
+    <div class="legend"><span><span class="sw" style="border-color:var(--ccc)"></span>利差</span>
+      <span><span class="sw dash" style="border-color:var(--ma)"></span>200 日均线</span></div></div>
+    <svg id="c-ccc"></svg></div>
+  <div class="panel"><div class="ph"><div class="pt">利差的 252 日分位（100 = 一年里最宽）</div>
+    <div class="legend"><span><span class="sw" style="border-color:var(--ccc)"></span>分位</span>
+      <span><span class="sw dash" style="border-color:var(--ma)"></span>95（恐慌线）/ 10（自满线）</span></div></div>
+    <svg id="c-pct"></svg></div>
+
+  <h2>历史表现（事后检验）</h2>
+  <div class="stat" id="stat"></div>
+
+  <h2>见顶预警逐次记录</h2>
+  <div class="tbl"><table id="t-top"></table></div>
+  <h2>见底预警逐次记录</h2>
+  <div class="tbl"><table id="t-bot"></table></div>
+
+  <h2>规则</h2>
+  <div class="note" id="rules"></div>
+
+  <h2>局限（看信号前先读）</h2>
+  <ul class="note">
+    <li><b>样本很小。</b>两条规则都有读数的区间（<span id="lim-from"></span> 起）里只有 <span id="lim-tops"></span> 个下跌顶、<span id="lim-bots"></span> 个底部。任何一个百分比都只代表几次事件。</li>
+    <li><b>规则是看过这段数据才定的。</b>参数虽然取了整数、没有逐个优化，但候选规则是在同一段数据上比较后选出来的，没有样本外检验。页面上的统计全是样本内。</li>
+    <li><b>见底预警几乎没有超额。</b>纳指只要已经跌了 10% 以上，之后 63 日平均就和见底预警之后差不多（见上方「历史表现」）。它的作用更多是告诉你「信用恐慌已经开始回落」，而不是额外的收益。</li>
+    <li><b>2022 年那类熊市是它的盲区。</b>利差在熊市里反复冲高回落，见底预警会连着亮（2022-03、05、07、10），03-21 那次之后又跌了 23%。</li>
+    <li><b>利差低点通常比股票顶早几个月</b>（2021、2022、2024、2026 都是这样），所以见顶预警是「背离」提示，不是择时信号：<span id="lim-lead"></span>也有亮了却没出顶的时候，规则也只在上穿那天报一次。</li>
+    <li><b>数据：</b>FRED 上 ICE 系列只提供最近约 3 年，更早的历史来自仓库里的存档；ICE 数据有版权限制，不要公开转载。</li>
+  </ul>
+</div>
+<div id="tip"></div>
+
+<script>
+const D = /*__DATA__*/null;
+const P = D.params, C = D.cur, SM = D.summary;
+const n = D.d.length;
+const $ = (id) => document.getElementById(id);
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const f2 = (x) => x == null ? "—" : x.toFixed(2);
+const pctf = (x, k = 1) => x == null ? "—" : (x >= 0 ? "+" : "") + (x * 100).toFixed(k) + "%";
+const num = (x) => x == null ? "—" : x.toLocaleString("en-US", { maximumFractionDigits: 0 });
+const cls = (x) => x == null ? "" : (x < 0 ? "neg" : "pos");
+const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+
+// ---------- 顶部 ----------
+$("sub").textContent = `数据截至 ${C.date}（纳指交易日）· 利差最新 ${D.ccc_latest.date} ${f2(D.ccc_latest.v)}% · 页面生成于 ${D.generated}`;
+const bad = Object.entries(D.fetch || {}).filter(([, v]) => v && v.ok === false);
+if (bad.length) {
+  $("banner").innerHTML = `<div class="banner">⚠ 本次下载失败，页面用的是本地已有数据：` +
+    bad.map(([k, v]) => `${esc(v.series)}（${esc(v.error || "")}）`).join("；") + `</div>`;
+}
+const card = (k, v, h) => `<div class="card"><div class="k">${k}</div><div class="v">${v}</div><div class="h">${h}</div></div>`;
+const phaseNote = { "压力": "利差在一年里的 95 分位以上", "自满": "利差在一年里的 10 分位以下", "走阔": "利差在 200 日线上方", "平稳": "利差在 200 日线下方", "—": "" };
+$("cards").innerHTML =
+  card("CCC 利差", f2(C.s) + "%", `20 日变化 ${C.chg20 == null ? "—" : (C.chg20 >= 0 ? "+" : "") + C.chg20.toFixed(2)} 个百分点`) +
+  card("252 日分位", C.pct == null ? "—" : C.pct.toFixed(0), `阶段：${C.phase} · ${phaseNote[C.phase] || ""}`) +
+  card("相对 200 日均线", pctf(C.gap200), `200 日均线 ${f2(C.ma200)}%`) +
+  card("纳斯达克综合", num(C.n), `距一年最高收盘 ${pctf(C.dd)}`);
+
+const li = (ok, label, detail) => `<li><span class="mark ${ok ? "ok" : "no"}">${ok ? "✓" : "○"}</span><span class="${ok ? "ok" : "no"}"><b>${label}</b>${detail ? "　" + detail : ""}</span></li>`;
+const tc = C.top_cond || {}, bc = C.bot_cond || {};
+const lastTxt = (e, name) => e ? `最近一次${name}：${e.date}（${e.ago} 个交易日前）` : `历史上还没有${name}`;
+const topOn = C.top_today, botOn = C.bot_today;
+$("sig").innerHTML =
+  `<div class="card"><div class="title"><span class="ico-top">▼</span>见顶预警
+     <span class="badge ${topOn ? "on-top" : "off"}">${topOn ? "▼ 今日触发" : (C.top_raw_today ? "条件满足（冷却期内）" : "未触发")}</span></div>
+   <ul class="conds">
+     ${li(tc.cross, "利差今日上穿 200 日均线", tc.above ? "（利差已在线上方，上穿发生在之前）" : "（利差在线下方）")}
+     ${li(tc.near, `纳指距一年高点不到 ${(P.top_near * 100).toFixed(0)}%`, `（现在 ${pctf(C.dd)}）`)}
+   </ul>
+   ${C.above_since && tc.near ? `<div class="last"><b style="color:var(--text)">背离持续中</b>：利差自 ${C.above_since.date} 起连续 ${C.above_since.days} 个交易日在 200 日线上方，纳指仍在高点 ${(P.top_near * 100).toFixed(0)}% 以内。规则只在上穿那天报一次，这段时间不会重复亮灯。</div>` : ""}
+   <div class="last">${lastTxt(C.last_top, "见顶预警")}</div></div>` +
+  `<div class="card"><div class="title"><span class="ico-bot">▲</span>见底预警
+     <span class="badge ${botOn ? "on-bot" : "off"}">${botOn ? "▲ 今日触发" : (C.bot_raw_today ? "条件满足（冷却期内）" : "未触发")}</span></div>
+   <ul class="conds">
+     ${li(bc.panic, `${P.bot_look} 日内利差曾到 ${P.bot_pct} 分位以上`, `（${P.bot_look} 日内最高 ${C.panic_max20 == null ? "—" : C.panic_max20.toFixed(0)}）`)}
+     ${li(bc.below, `利差跌破 ${P.bot_ma} 日均线`, "")}
+     ${li(bc.falling, `${P.bot_ma} 日均线比 ${P.bot_slope} 日前低`, "")}
+     ${li(bc.drawdown, `纳指距一年高点已跌 ${(P.bot_dd * 100).toFixed(0)}% 以上`, `（现在 ${pctf(C.dd)}）`)}
+   </ul>
+   <div class="last">${lastTxt(C.last_bot, "见底预警")}</div></div>`;
+
+// ---------- 图 ----------
+const topSet = new Map(D.top_events.map((e) => [e.i, e]));
+const botSet = new Map(D.bot_events.map((e) => [e.i, e]));
+const idxOf = (ds) => ds.map((d) => D.d.indexOf(d)).filter((i) => i >= 0);
+const tops = idxOf(SM.top_dates), bots = idxOf(SM.bot_dates);
+let i0 = 0, i1 = n - 1;
+const PAD = { l: 56, r: 14, t: 14, b: 26 };
+
+function niceTicks(lo, hi, k) {
+  const span = hi - lo, step0 = span / k, mag = Math.pow(10, Math.floor(Math.log10(step0)));
+  const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => span / s <= k) || 10 * mag;
+  const out = [];
+  for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) out.push(+v.toFixed(10));
+  return out;
+}
+
+const charts = [
+  { id: "c-nas", h: 300, series: [{ a: D.n, c: "--nas", w: 1.6 }], fmt: num, events: true },
+  { id: "c-ccc", h: 230, series: [{ a: D.ma200, c: "--ma", w: 1.4, dash: "5 4" }, { a: D.s, c: "--ccc", w: 1.6 }], fmt: (v) => v.toFixed(0) + "%" },
+  { id: "c-pct", h: 150, series: [{ a: D.pct, c: "--ccc", w: 1.3 }], fmt: (v) => v.toFixed(0), fixed: [0, 100], refs: [P.bot_pct, 10] },
+];
+
+function draw() {
+  charts.forEach((ch) => {
+    const svg = $(ch.id), W = svg.clientWidth || 800, H = ch.h;
+    svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.setAttribute("height", H);
+    const pw = W - PAD.l - PAD.r, ph = H - PAD.t - PAD.b;
+    let lo = Infinity, hi = -Infinity;
+    if (ch.fixed) [lo, hi] = ch.fixed;
+    else ch.series.forEach((s) => { for (let i = i0; i <= i1; i++) { const v = s.a[i]; if (v != null) { lo = Math.min(lo, v); hi = Math.max(hi, v); } } });
+    if (!ch.fixed) { const m = (hi - lo) * 0.08 || 1; lo -= m; hi += m * (ch.events ? 1.6 : 1); }
+    const X = (i) => PAD.l + (i - i0) / Math.max(1, i1 - i0) * pw;
+    const Y = (v) => PAD.t + (1 - (v - lo) / (hi - lo)) * ph;
+    ch.X = X; ch.Y = Y; ch.W = W; ch.pw = pw;
+    let g = "";
+    const ticks = ch.fixed ? [0, 25, 50, 75, 100] : niceTicks(lo, hi, 5);
+    ticks.forEach((v) => {
+      g += `<line x1="${PAD.l}" x2="${W - PAD.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="${css("--grid")}" />`;
+      g += `<text x="${PAD.l - 8}" y="${Y(v) + 4}" text-anchor="end" font-size="11.5" fill="${css("--text2")}">${ch.fmt(v)}</text>`;
+    });
+    (ch.refs || []).forEach((v) => {
+      g += `<line x1="${PAD.l}" x2="${W - PAD.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="${css("--ma")}" stroke-dasharray="4 4" />`;
+    });
+    // x 轴：跨度超过 2 年按年，否则按季度
+    const yrs = (i1 - i0) / 252, monthsStep = yrs > 2 ? 12 : 3;
+    let prev = null, lastLab = -1e9;
+    const labGap = monthsStep === 12 ? 40 : 64;
+    for (let i = i0; i <= i1; i++) {
+      const ym = D.d[i].slice(0, 7), m = +ym.slice(5, 7);
+      if (prev && ym !== prev && (m - 1) % monthsStep === 0) {
+        const lab = monthsStep === 12 ? D.d[i].slice(0, 4) : D.d[i].slice(0, 7);
+        g += `<line x1="${X(i)}" x2="${X(i)}" y1="${PAD.t}" y2="${H - PAD.b}" stroke="${css("--grid")}" />`;
+        if (X(i) - lastLab >= labGap) {
+          g += `<text x="${X(i)}" y="${H - 7}" text-anchor="middle" font-size="11.5" fill="${css("--text2")}">${lab}</text>`;
+          lastLab = X(i);
+        }
+      }
+      prev = ym;
+    }
+    // 事后确认的顶 / 底（小字太挤时只画虚线）
+    let lastMark = -1e9;
+    tops.concat(bots).sort((a, b) => a - b).forEach((i) => {
+      if (i < i0 || i > i1) return;
+      g += `<line x1="${X(i)}" x2="${X(i)}" y1="${PAD.t}" y2="${H - PAD.b}" stroke="${css("--muted")}" stroke-dasharray="2 4" />`;
+      if (ch.events && X(i) - lastMark >= 22) {
+        g += `<text x="${X(i) + 3}" y="${PAD.t + 10}" font-size="11" fill="${css("--muted")}">${tops.includes(i) ? "顶" : "底"}</text>`;
+        lastMark = X(i);
+      }
+    });
+    ch.series.forEach((s) => {
+      let d = "", pen = false;
+      for (let i = i0; i <= i1; i++) {
+        const v = s.a[i];
+        if (v == null) { pen = false; continue; }
+        d += (pen ? "L" : "M") + X(i).toFixed(1) + " " + Y(v).toFixed(1); pen = true;
+      }
+      g += `<path d="${d}" fill="none" stroke="${css(s.c)}" stroke-width="${s.w}" ${s.dash ? `stroke-dasharray="${s.dash}"` : ""} stroke-linejoin="round" />`;
+    });
+    if (ch.events) {
+      D.top_events.forEach((e) => { if (e.i >= i0 && e.i <= i1) g += tri(X(e.i), Y(D.n[e.i]) - 9, "down", css("--top")); });
+      D.bot_events.forEach((e) => { if (e.i >= i0 && e.i <= i1) g += tri(X(e.i), Y(D.n[e.i]) + 9, "up", css("--bot")); });
+    }
+    g += `<line class="xh" x1="0" x2="0" y1="${PAD.t}" y2="${H - PAD.b}" stroke="${css("--text2")}" stroke-width="1" visibility="hidden" />`;
+    g += `<rect class="hit" x="${PAD.l}" y="0" width="${pw}" height="${H}" fill="transparent" />`;
+    svg.innerHTML = g;
+    const hit = svg.querySelector(".hit");
+    const move = (ev) => { const p = ev.touches ? ev.touches[0] : ev; hover(ch, p.clientX, p.clientY); };
+    hit.addEventListener("mousemove", move);
+    hit.addEventListener("touchmove", (ev) => { move(ev); ev.preventDefault(); }, { passive: false });
+    hit.addEventListener("mouseleave", unhover);
+  });
+}
+
+function tri(x, y, dir, color) {
+  const s = 6, p = dir === "down" ? `${x - s},${y - s} ${x + s},${y - s} ${x},${y + s * 0.7}` : `${x - s},${y + s} ${x + s},${y + s} ${x},${y - s * 0.7}`;
+  return `<polygon points="${p}" fill="${color}" stroke="${css("--surface")}" stroke-width="1.5" />`;
+}
+
+function hover(ch, cx, cy) {
+  const r = $(ch.id).getBoundingClientRect();
+  const x = (cx - r.left) * (ch.W / r.width);
+  const i = Math.max(i0, Math.min(i1, Math.round(i0 + (x - PAD.l) / ch.pw * (i1 - i0))));
+  charts.forEach((c) => {
+    const l = $(c.id).querySelector(".xh"); if (!l) return;
+    l.setAttribute("x1", c.X(i)); l.setAttribute("x2", c.X(i)); l.setAttribute("visibility", "visible");
+  });
+  const row = (k, v) => `<div class="row"><span>${k}</span><b>${v}</b></div>`;
+  let h = `<div class="d">${D.d[i]}</div>` + row("纳指", num(D.n[i])) + row("距一年高点", pctf(D.dd[i])) +
+    row("CCC 利差", D.s[i] == null ? "—" : f2(D.s[i]) + "%") + row("200 日均线", D.ma200[i] == null ? "—" : f2(D.ma200[i]) + "%") +
+    row("252 日分位", D.pct[i] == null ? "—" : D.pct[i].toFixed(0));
+  if (topSet.has(i)) h += `<div class="row"><span class="ico-top">▼ 见顶预警</span></div>`;
+  if (botSet.has(i)) h += `<div class="row"><span class="ico-bot">▲ 见底预警</span></div>`;
+  if (tops.includes(i)) h += `<div class="row"><span>┆ 事后确认的下跌顶</span></div>`;
+  if (bots.includes(i)) h += `<div class="row"><span>┆ 事后确认的底部</span></div>`;
+  const tip = $("tip"); tip.innerHTML = h; tip.style.display = "block";
+  const tw = tip.offsetWidth, th = tip.offsetHeight;
+  tip.style.left = Math.min(window.innerWidth - tw - 8, cx + 14) + "px";
+  tip.style.top = Math.max(8, Math.min(window.innerHeight - th - 8, cy - th / 2)) + "px";
+}
+function unhover() {
+  $("tip").style.display = "none";
+  charts.forEach((c) => { const l = $(c.id).querySelector(".xh"); if (l) l.setAttribute("visibility", "hidden"); });
+}
+
+document.querySelectorAll("#range button").forEach((b) => b.addEventListener("click", () => {
+  document.querySelectorAll("#range button").forEach((x) => x.classList.toggle("on", x === b));
+  const y = +b.dataset.y;
+  i1 = n - 1; i0 = y ? Math.max(0, n - 1 - y * 252) : 0;
+  try { localStorage.setItem("ccc-range", y); } catch (e) {}
+  draw();
+}));
+try { const y = localStorage.getItem("ccc-range"); if (y) document.querySelector(`#range button[data-y="${y}"]`)?.click(); } catch (e) {}
+let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(draw, 120); });
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", draw);
+draw();
+
+// ---------- 统计与表格 ----------
+const T = SM.top, B = SM.bot;
+$("stat").innerHTML =
+  `<div class="card"><div class="title" style="font-weight:650"><span class="ico-top">▼</span> 见顶预警</div>
+    <p>${SM.from} 以来亮了 <b>${T.n}</b> 次；这段时间的 <b>${T.tops}</b> 个下跌顶（一年新高、之后 ${63} 日内跌 11% 以上）里，
+    亮灯后 ${P.top_lead} 个交易日内（或顶后 5 日内）出现的有 <b>${T.caught}</b> 个。${T.missed.length ? "没抓到：" + T.missed.join("、") + "。" : ""}</p>
+    <p>亮灯后 ${P.fwd} 日纳指平均 <b class="${cls(T.fwd)}">${pctf(T.fwd)}</b>，同样处在高点 5% 以内的所有日子平均 <b>${pctf(T.base_fwd)}</b>；
+    之后 ${P.fwd_long} 日内最大回撤平均 <b>${pctf(T.mdd)}</b>，基准 <b>${pctf(T.base_mdd)}</b>。</p></div>` +
+  `<div class="card"><div class="title" style="font-weight:650"><span class="ico-bot">▲</span> 见底预警</div>
+    <p>${SM.from} 以来亮了 <b>${B.n}</b> 次；这段时间的 <b>${B.bottoms}</b> 个底部（前后 63 日最低、比一年高点低 15% 以上）里，
+    亮灯落在底前 ${P.bot_pre} 日至底后 ${P.bot_post} 日内的有 <b>${B.caught}</b> 个。${B.missed.length ? "没抓到：" + B.missed.join("、") + "。" : ""}</p>
+    <p>亮灯后 ${P.fwd} 日纳指平均 <b class="${cls(B.fwd)}">${pctf(B.fwd)}</b>（${(B.neg * 100).toFixed(0)}% 的次数为负）；
+    所有日子平均 <b>${pctf(B.base_fwd)}</b>，<b>纳指已跌 10% 以上的所有日子平均 ${pctf(B.base_down)}</b>——超额主要来自「已经跌下来了」本身。</p></div>`;
+
+const th = (cols) => "<tr>" + cols.map((c) => `<th>${c}</th>`).join("") + "</tr>";
+$("t-top").innerHTML = th(["日期", "利差", "200 日线", "纳指距高点", `之后 ${P.fwd} 日`, `之后 ${P.fwd_long} 日最大回撤`, "结果"]) +
+  D.top_events.slice().reverse().map((e) => `<tr><td>${e.date}</td><td>${f2(e.s)}%</td><td>${f2(e.ma200)}%</td><td>${pctf(e.dd)}</td>
+    <td class="${cls(e.fwd)}">${pctf(e.fwd)}</td><td class="${cls(e.mdd)}">${pctf(e.mdd)}</td>
+    <td>${e.hit ? `${e.lead >= 0 ? "提前 " + e.lead : "滞后 " + -e.lead} 个交易日，顶在 ${e.hit}` : (e.open ? "观察期未满" : "之后没有下跌顶")}</td></tr>`).join("");
+$("t-bot").innerHTML = th(["日期", "利差", `${P.bot_look} 日内最高分位`, "纳指距高点", `之后 ${P.fwd} 日`, `之后 ${P.fwd} 日内再跌`, "结果"]) +
+  D.bot_events.slice().reverse().map((e) => `<tr><td>${e.date}</td><td>${f2(e.s)}%</td><td>${e.pct.toFixed(0)}</td><td>${pctf(e.dd)}</td>
+    <td class="${cls(e.fwd)}">${pctf(e.fwd)}</td><td class="${cls(e.worse)}">${pctf(e.worse)}</td>
+    <td>${e.hit ? `底在 ${e.hit}（亮灯${e.lag >= 0 ? "晚 " + e.lag : "早 " + -e.lag} 个交易日）` : (e.open ? "观察期未满" : "附近没有确认的底部")}</td></tr>`).join("");
+
+$("lim-from").textContent = SM.from; $("lim-tops").textContent = T.tops; $("lim-bots").textContent = B.bottoms;
+const leads = D.top_events.filter((e) => e.hit && e.lead >= 0).map((e) => e.lead);
+$("lim-lead").textContent = leads.length ? `抓到的顶里，从亮灯到真正见顶过去要 ${Math.min(...leads)}~${Math.max(...leads)} 个交易日；` : "";
+
+$("rules").innerHTML = `<ul>
+  <li><b><span class="ico-top">▼</span> 见顶预警</b>：CCC 利差<b>上穿 ${P.top_ma} 日均线</b>（前一日在线下、当日在线上），且纳指收盘<b>距过去一年最高收盘不到 ${(P.top_near * 100).toFixed(0)}%</b>。
+    含义是信用趋势转坏、股价还在高位，两者背离。距上一次满足条件不到 ${P.top_cool} 个交易日的不再报。</li>
+  <li><b><span class="ico-bot">▲</span> 见底预警</b>：利差 <b>${P.bot_look} 日内曾到过去一年的第 ${P.bot_pct} 分位以上</b>（恐慌），当日<b>跌破 ${P.bot_ma} 日均线且 ${P.bot_ma} 日均线比 ${P.bot_slope} 日前低</b>（回落确认），
+    且纳指<b>距一年最高收盘已跌 ${(P.bot_dd * 100).toFixed(0)}% 以上</b>。距上一次满足条件不到 ${P.bot_cool} 个交易日的不再报。</li>
+  <li><b>阶段</b>（只是读数说明，不进信号）：分位 ≥ ${P.bot_pct} 为「压力」，≤ 10 为「自满」，其余按利差在 200 日线上方 / 下方记「走阔」/「平稳」。</li>
+  <li><b>日历</b>：以纳指交易日为准。ICE 利差在美股休市日也有数，每个交易日取当日或之前最近一个值；利差在 FRED 上一般晚一天发布，所以最新一天可能还是前一天的利差。</li>
+  <li>参数都在 <code>signals.py</code> 顶部。改了参数，上面的历史表现会跟着重算——但那就是在同一段数据上再挑一次，样本内的成绩会更好看，不代表以后更准。</li>
+</ul>`;
+</script>
+</body>
+</html>
