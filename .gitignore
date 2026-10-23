@@ -10,3 +10,6 @@ status.json
 
 # FRED API key（可选，只放本地）
 fred_api_key.txt
+
+# matplotlib 字体缓存（历史复核画图时生成）
+.mplconfig/
