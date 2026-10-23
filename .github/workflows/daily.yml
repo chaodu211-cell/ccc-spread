@@ -1,15 +1,17 @@
 name: daily
 
-# 每个美股交易日的次日在美国机房拉 CCC 利差与纳指 → 重算 → 把 data/、信号快照.csv、ci_status.json 提交回 main。
+# 工作日纽约时间 17:00 在美国机房拉 CCC 利差与纳指 → 重算 → 把 data/、信号快照.csv、ci_status.json 提交回 main。
 # 本地双击「更新并打开.command」会先 git pull，所以本机连不上 FRED 时也能拿到这里更新好的数据。
 #
 # FRED_API_KEY 放在仓库 Settings → Secrets and variables → Actions（2026-10-23 配好）。
 # 必须有：2026-10-23 实测 GitHub 机房上 FRED 网页下载会被断开、Yahoo 返回 429，只有官方 API 能用。
 on:
   schedule:
-    # 13:37 UTC = 北京 21:37 = 美东 09:37（夏令时）/ 08:37（冬令时）。ICE 利差在 FRED 上一般晚一天发布，
-    # 这时前一交易日的数已齐。周二到周六各跑一次，正好覆盖周一到周五。分钟取 37 避开整点排队。
-    - cron: "37 13 * * 2-6"
+    # 工作日纽约时间 17:00。GitHub 的定时只认 UTC，夏令时 17:00 = 21:00 UTC，冬令时 = 22:00 UTC，
+    # 两条都挂上，由下面的 check 按当天纽约是否夏令时只放行对的那一条（GitHub 常晚到，所以按触发的是哪条判断，不按到达时刻）。
+    # 注意：17:00 时 FRED 一般还没有当天的数据（ICE 利差次日才发布，NASDAQCOM 也常要到次日），这次跑多半拿到的是前一交易日。
+    - cron: "0 21 * * 1-5"
+    - cron: "0 22 * * 1-5"
   # 改了代码就跑一次（机器人提交的数据文件与文档不触发；GITHUB_TOKEN 的推送本来也不会再触发工作流）
   push:
     branches: [main]
@@ -24,7 +26,26 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      go: ${{ steps.c.outputs.go }}
+    steps:
+      - id: c
+        env:
+          CRON: ${{ github.event.schedule }}
+        run: |
+          go=true
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            if [ "$(TZ=America/New_York date +%Z)" = "EDT" ]; then want="0 21 * * 1-5"; else want="0 22 * * 1-5"; fi
+            [ "$CRON" = "$want" ] || go=false
+          fi
+          echo "go=$go" >> "$GITHUB_OUTPUT"
+          echo "触发：${{ github.event_name }} ${CRON}；纽约现在 $(TZ=America/New_York date '+%F %H:%M %Z')；执行：$go"
+
   update:
+    needs: check
+    if: needs.check.outputs.go == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
