@@ -19,6 +19,7 @@ HI_WIN, HI_MINP = 252, 126          # 纳指「一年最高收盘」的窗口与
 TOP_MA, TOP_NEAR, TOP_COOL = 200, 0.05, 63
 BOT_PCT, BOT_LOOK, BOT_MA, BOT_SLOPE, BOT_DD, BOT_COOL = 95.0, 20, 10, 3, 0.10, 20
 STALE_DAYS = 7
+DESIGN_FROM = "2016-10-24"          # 规则是看这一天以后的数据定的；更早的部分（data/ 从 2005-10 起）是样本外
 
 # 事后评估口径（只用于页面上的历史表，不进信号）
 DD_TOP, DD_LOOK = 0.11, 63          # 下跌顶：一年新高，之后 63 日内回撤 ≥ 11%（与 best-weights 的 alt_engine.drawdown_tops 相同）

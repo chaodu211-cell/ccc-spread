@@ -37,6 +37,8 @@ def build(ccc, nas, fetch_status=None):
         "last_top": ago(r["top_events"]), "last_bot": ago(r["bot_events"]), "above_since": above_since,
         "panic_max20": max([a for a in r["pct"][max(0, last - G.BOT_LOOK + 1):last + 1] if a is not None], default=None),
     }
+    # 页面时间轴从三项指标（200 日线、252 日分位、一年高点）都有读数的那天开始，前面只是预热
+    start = next(i for i in range(len(dates)) if None not in (r["ma200"][i], r["pct"][i], r["dd"][i]))
     cd = max(ccc)
     data = {
         "generated": datetime.now().strftime("%Y-%m-%d %H:%M"),
@@ -46,11 +48,11 @@ def build(ccc, nas, fetch_status=None):
         "ma200": [_r(x, 3) for x in r["ma200"]], "pct": [_r(x, 1) for x in r["pct"]], "dd": [_r(x, 4) for x in r["dd"]],
         "top_events": [{k: v for k, v in x.items()} for x in top_rows],
         "bot_events": [{k: v for k, v in x.items()} for x in bot_rows],
-        "summary": summary, "cur": cur,
+        "summary": summary, "cur": cur, "i_start": start,
         "params": {"top_ma": G.TOP_MA, "top_near": G.TOP_NEAR, "top_cool": G.TOP_COOL,
                    "bot_pct": G.BOT_PCT, "bot_look": G.BOT_LOOK, "bot_ma": G.BOT_MA, "bot_slope": G.BOT_SLOPE,
                    "bot_dd": G.BOT_DD, "bot_cool": G.BOT_COOL, "fwd": G.FWD, "fwd_long": G.FWD_LONG,
-                   "top_lead": G.TOP_LEAD, "bot_pre": G.BOT_PRE, "bot_post": G.BOT_POST},
+                   "top_lead": G.TOP_LEAD, "top_pre": G.TOP_PRE, "design_from": G.DESIGN_FROM, "bot_pre": G.BOT_PRE, "bot_post": G.BOT_POST},
     }
     return data, (dates, S, N, r)
 

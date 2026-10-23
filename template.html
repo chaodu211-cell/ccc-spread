@@ -60,6 +60,20 @@ h2 { font-size: 18px; margin: 36px 0 12px; font-weight: 650; }
 .seg { display: inline-flex; background: var(--surface); border: 1px solid var(--border); border-radius: 9px; padding: 3px; }
 .seg button { border: 0; background: transparent; color: var(--text2); font: inherit; font-size: 13.5px; padding: 4px 12px; border-radius: 7px; cursor: pointer; }
 .seg button.on { background: var(--grid); color: var(--text); font-weight: 600; }
+.toolbar .grp { display: flex; gap: 8px; flex-wrap: wrap; }
+.brush { position: relative; height: 52px; margin: 4px 0 8px; }
+.brush svg { position: absolute; inset: 0; height: 100%; }
+.brush input { position: absolute; left: 0; top: 0; width: 100%; height: 100%; margin: 0; background: none;
+  pointer-events: none; -webkit-appearance: none; appearance: none; }
+.brush input::-webkit-slider-runnable-track { background: none; height: 100%; border: 0; }
+.brush input::-moz-range-track { background: none; height: 100%; border: 0; }
+.brush input::-webkit-slider-thumb { -webkit-appearance: none; pointer-events: auto; width: 12px; height: 52px; border-radius: 5px;
+  background: var(--surface); border: 1.5px solid var(--text2); cursor: ew-resize; }
+.brush input::-moz-range-thumb { pointer-events: auto; width: 9px; height: 49px; border-radius: 5px;
+  background: var(--surface); border: 1.5px solid var(--text2); cursor: ew-resize; }
+.brush input:focus-visible::-webkit-slider-thumb { outline: 2px solid var(--nas); outline-offset: 1px; }
+.brush input:focus-visible::-moz-range-thumb { outline: 2px solid var(--nas); outline-offset: 1px; }
+.brush input:focus { outline: none; }
 .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px 6px; margin-top: 12px; position: relative; }
 .panel .ph { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 4px 16px; }
 .panel .pt { font-weight: 600; font-size: 14.5px; }
@@ -102,17 +116,27 @@ tr:last-child td { border-bottom: 0; }
   <div class="sig" id="sig"></div>
 
   <div class="toolbar">
-    <div class="seg" id="range">
-      <button data-y="1">1 年</button><button data-y="3">3 年</button><button data-y="5">5 年</button><button data-y="0" class="on">全部</button>
+    <div class="grp">
+      <div class="seg" id="range">
+        <button data-p="1y">1 年</button><button data-p="3y">3 年</button><button data-p="5y">5 年</button><button data-p="10y">10 年</button><button data-p="all" class="on">全部</button>
+      </div>
+      <div class="seg" id="split">
+        <button data-p="oos">样本外</button><button data-p="dev">制定期</button>
+      </div>
     </div>
     <div class="legend">
       <span><span class="ico-top">▼</span>见顶预警</span>
       <span><span class="ico-bot">▲</span>见底预警</span>
       <span style="color:var(--muted)">┆ 事后确认的下跌顶 / 底部</span>
+      <span><span class="sw" style="border-top:10px solid var(--grid);height:10px;width:14px"></span><span id="oos-lab">样本外</span></span>
     </div>
   </div>
 
-  <div class="panel"><div class="ph"><div class="pt">纳斯达克综合指数</div>
+  <div class="panel"><div class="ph"><div class="pt">时间范围 · 拖动两端的手柄</div><div class="legend" id="range-lab"></div></div>
+    <div class="brush"><svg id="mini"></svg>
+      <input type="range" id="ra" aria-label="起始日期"><input type="range" id="rb" aria-label="结束日期"></div></div>
+
+  <div class="panel"><div class="ph"><div class="pt">纳斯达克综合指数（对数刻度）</div>
     <div class="legend"><span><span class="sw" style="border-color:var(--nas)"></span>收盘</span></div></div>
     <svg id="c-nas"></svg></div>
   <div class="panel"><div class="ph"><div class="pt">CCC 及以下高收益债利差（OAS，%）</div>
@@ -125,6 +149,7 @@ tr:last-child td { border-bottom: 0; }
     <svg id="c-pct"></svg></div>
 
   <h2>历史表现（事后检验）</h2>
+  <p class="note" id="stat-range" style="margin:-4px 0 12px"></p>
   <div class="stat" id="stat"></div>
 
   <h2>见顶预警逐次记录</h2>
@@ -137,10 +162,11 @@ tr:last-child td { border-bottom: 0; }
 
   <h2>局限（看信号前先读）</h2>
   <ul class="note">
-    <li><b>样本很小。</b>两条规则都有读数的区间（<span id="lim-from"></span> 起）里只有 <span id="lim-tops"></span> 个下跌顶、<span id="lim-bots"></span> 个底部。任何一个百分比都只代表几次事件。</li>
-    <li><b>规则是看过这段数据才定的。</b>参数虽然取了整数、没有逐个优化，但候选规则是在同一段数据上比较后选出来的，没有样本外检验。页面上的统计全是样本内。</li>
-    <li><b>见底预警几乎没有超额。</b>纳指只要已经跌了 10% 以上，之后 63 日平均就和见底预警之后差不多（见上方「历史表现」）。它的作用更多是告诉你「信用恐慌已经开始回落」，而不是额外的收益。</li>
-    <li><b>2022 年那类熊市是它的盲区。</b>利差在熊市里反复冲高回落，见底预警会连着亮（2022-03、05、07、10），03-21 那次之后又跌了 23%。</li>
+    <li><b>样本很小。</b>页面上的整段数据（<span id="lim-from"></span> 起）里只有 <span id="lim-tops"></span> 个下跌顶、<span id="lim-bots"></span> 个底部。任何一个百分比都只代表几次事件。</li>
+    <li><b>规则是看过 <span class="lim-design"></span> 以后的数据才定的。</b>参数虽然取了整数、没有逐个优化，但候选规则是在这段数据上比较后选出来的，这段（「制定期」）的统计是样本内。
+      <span class="lim-design"></span> 以前（「样本外」，图上浅灰底）规则没看过，只原样跑了一次、没有回头调参——要判断规则靠不靠得住，主要看这一段。</li>
+    <li><b>见底预警没有超额，长危机里会报早。</b>纳指只要已经跌了 10% 以上，之后 63 日平均就和见底预警之后差不多，样本外更差（切到「样本外」看）。它的作用更多是告诉你「信用恐慌已经开始回落」，不是抄底信号。</li>
+    <li><b>2008、2022 那类熊市是它的盲区。</b>利差在熊市里反复冲高回落，见底预警会连着亮：2022 年 03、05、07、10 月，03-21 那次之后又跌了 23%；2008-07-23 亮灯后又跌 27%，2009-03 的大底反而没报（08 年 12 月的极值还在一年窗口里，分位到不了 95）。</li>
     <li><b>利差低点通常比股票顶早几个月</b>（2021、2022、2024、2026 都是这样），所以见顶预警是「背离」提示，不是择时信号：<span id="lim-lead"></span>也有亮了却没出顶的时候，规则也只在上穿那天报一次。</li>
     <li><b>数据：</b>FRED 上 ICE 系列只提供最近约 3 年，更早的历史来自仓库里的存档；ICE 数据有版权限制，不要公开转载。</li>
   </ul>
@@ -202,8 +228,23 @@ const topSet = new Map(D.top_events.map((e) => [e.i, e]));
 const botSet = new Map(D.bot_events.map((e) => [e.i, e]));
 const idxOf = (ds) => ds.map((d) => D.d.indexOf(d)).filter((i) => i >= 0);
 const tops = idxOf(SM.top_dates), bots = idxOf(SM.bot_dates);
-let i0 = 0, i1 = n - 1;
+const S0 = D.i_start;                                   // 之前只是均线 / 分位的预热，不画
+const iDesign = D.d.findIndex((d) => d >= P.design_from); // 制定期第一天；之前是样本外
+let i0 = S0, i1 = n - 1;
 const PAD = { l: 56, r: 14, t: 14, b: 26 };
+
+// 对数轴刻度：在 1、2、5… 等整数倍里挑 3~6 个，挑不够就退回线性刻度
+function logTicks(lo, hi) {
+  const sets = [[1], [1, 2, 5], [1, 1.5, 2, 3, 5, 7], [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 7, 8, 9]];
+  for (const ms of sets) {
+    const out = [];
+    for (let e = Math.floor(Math.log10(lo)); e <= Math.ceil(Math.log10(hi)); e++)
+      ms.forEach((m) => { const v = m * 10 ** e; if (v >= lo && v <= hi) out.push(v); });
+    if (out.length > 6) break;
+    if (out.length >= 3) return out;
+  }
+  return niceTicks(lo, hi, 5);
+}
 
 function niceTicks(lo, hi, k) {
   const span = hi - lo, step0 = span / k, mag = Math.pow(10, Math.floor(Math.log10(step0)));
@@ -214,7 +255,7 @@ function niceTicks(lo, hi, k) {
 }
 
 const charts = [
-  { id: "c-nas", h: 300, series: [{ a: D.n, c: "--nas", w: 1.6 }], fmt: num, events: true },
+  { id: "c-nas", h: 300, series: [{ a: D.n, c: "--nas", w: 1.6 }], fmt: num, events: true, log: true },
   { id: "c-ccc", h: 230, series: [{ a: D.ma200, c: "--ma", w: 1.4, dash: "5 4" }, { a: D.s, c: "--ccc", w: 1.6 }], fmt: (v) => v.toFixed(0) + "%" },
   { id: "c-pct", h: 150, series: [{ a: D.pct, c: "--ccc", w: 1.3 }], fmt: (v) => v.toFixed(0), fixed: [0, 100], refs: [P.bot_pct, 10] },
 ];
@@ -227,12 +268,22 @@ function draw() {
     let lo = Infinity, hi = -Infinity;
     if (ch.fixed) [lo, hi] = ch.fixed;
     else ch.series.forEach((s) => { for (let i = i0; i <= i1; i++) { const v = s.a[i]; if (v != null) { lo = Math.min(lo, v); hi = Math.max(hi, v); } } });
-    if (!ch.fixed) { const m = (hi - lo) * 0.08 || 1; lo -= m; hi += m * (ch.events ? 1.6 : 1); }
+    const tf = ch.log ? Math.log10 : (v) => v;               // 对数轴在 log10 空间里留边、换算
+    let tlo = tf(lo), thi = tf(hi);
+    if (!ch.fixed) { const m = (thi - tlo) * 0.08 || 1; tlo -= m; thi += m * (ch.events ? 1.6 : 1); }
+    if (ch.log) { lo = 10 ** tlo; hi = 10 ** thi; } else { lo = tlo; hi = thi; }
     const X = (i) => PAD.l + (i - i0) / Math.max(1, i1 - i0) * pw;
-    const Y = (v) => PAD.t + (1 - (v - lo) / (hi - lo)) * ph;
+    const Y = (v) => PAD.t + (1 - (tf(v) - tlo) / (thi - tlo)) * ph;
     ch.X = X; ch.Y = Y; ch.W = W; ch.pw = pw;
     let g = "";
-    const ticks = ch.fixed ? [0, 25, 50, 75, 100] : niceTicks(lo, hi, 5);
+    // 样本外（规则制定时没看过的那段）铺浅灰底
+    if (iDesign > i0) {
+      const xe = X(Math.min(iDesign, i1));
+      g += `<rect x="${PAD.l}" y="${PAD.t}" width="${xe - PAD.l}" height="${ph}" fill="${css("--grid")}" opacity=".55" />`;
+      if (ch.events && iDesign <= i1 && xe - PAD.l > 70) g += `<text x="${xe - 6}" y="${H - PAD.b - 6}" text-anchor="end" font-size="11" fill="${css("--muted")}">← 样本外</text>`;
+      if (ch.events && iDesign <= i1 && W - PAD.r - xe > 70) g += `<text x="${xe + 6}" y="${H - PAD.b - 6}" font-size="11" fill="${css("--muted")}">制定期 →</text>`;
+    }
+    const ticks = ch.fixed ? [0, 25, 50, 75, 100] : ch.log ? logTicks(lo, hi) : niceTicks(lo, hi, 5);
     ticks.forEach((v) => {
       g += `<line x1="${PAD.l}" x2="${W - PAD.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="${css("--grid")}" />`;
       g += `<text x="${PAD.l - 8}" y="${Y(v) + 4}" text-anchor="end" font-size="11.5" fill="${css("--text2")}">${ch.fmt(v)}</text>`;
@@ -321,43 +372,132 @@ function unhover() {
   charts.forEach((c) => { const l = $(c.id).querySelector(".xh"); if (l) l.setAttribute("visibility", "hidden"); });
 }
 
-document.querySelectorAll("#range button").forEach((b) => b.addEventListener("click", () => {
-  document.querySelectorAll("#range button").forEach((x) => x.classList.toggle("on", x === b));
-  const y = +b.dataset.y;
-  i1 = n - 1; i0 = y ? Math.max(0, n - 1 - y * 252) : 0;
-  try { localStorage.setItem("ccc-range", y); } catch (e) {}
-  draw();
-}));
-try { const y = localStorage.getItem("ccc-range"); if (y) document.querySelector(`#range button[data-y="${y}"]`)?.click(); } catch (e) {}
-let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(draw, 120); });
-window.matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", draw);
-draw();
+// ---------- 时间范围：预设按钮 + 双手柄滑块 ----------
+const GAP = 40;                                    // 两个手柄之间至少隔 40 个交易日
+const PRESETS = {
+  "1y": () => [Math.max(S0, n - 1 - 252), n - 1], "3y": () => [Math.max(S0, n - 1 - 3 * 252), n - 1],
+  "5y": () => [Math.max(S0, n - 1 - 5 * 252), n - 1], "10y": () => [Math.max(S0, n - 1 - 10 * 252), n - 1],
+  "all": () => [S0, n - 1], "oos": () => [S0, iDesign - 1], "dev": () => [iDesign, n - 1],
+};
+const ra = $("ra"), rb = $("rb"), TH = 12;         // TH：滑块手柄宽度，小图左右各缩进一半与手柄对齐
+[ra, rb].forEach((r) => { r.min = S0; r.max = n - 1; r.step = 1; });
+rb.style.zIndex = 2;
+const btns = document.querySelectorAll("#range button, #split button");
+const yrs = (a, b) => ((Date.parse(D.d[b]) - Date.parse(D.d[a])) / 3.156e10).toFixed(1);
 
-// ---------- 统计与表格 ----------
-const T = SM.top, B = SM.bot;
-$("stat").innerHTML =
-  `<div class="card"><div class="title" style="font-weight:650"><span class="ico-top">▼</span> 见顶预警</div>
-    <p>${SM.from} 以来亮了 <b>${T.n}</b> 次；这段时间的 <b>${T.tops}</b> 个下跌顶（一年新高、之后 ${63} 日内跌 11% 以上）里，
-    亮灯后 ${P.top_lead} 个交易日内（或顶后 5 日内）出现的有 <b>${T.caught}</b> 个。${T.missed.length ? "没抓到：" + T.missed.join("、") + "。" : ""}</p>
-    <p>亮灯后 ${P.fwd} 日纳指平均 <b class="${cls(T.fwd)}">${pctf(T.fwd)}</b>，同样处在高点 5% 以内的所有日子平均 <b>${pctf(T.base_fwd)}</b>；
-    之后 ${P.fwd_long} 日内最大回撤平均 <b>${pctf(T.mdd)}</b>，基准 <b>${pctf(T.base_mdd)}</b>。</p></div>` +
-  `<div class="card"><div class="title" style="font-weight:650"><span class="ico-bot">▲</span> 见底预警</div>
-    <p>${SM.from} 以来亮了 <b>${B.n}</b> 次；这段时间的 <b>${B.bottoms}</b> 个底部（前后 63 日最低、比一年高点低 15% 以上）里，
-    亮灯落在底前 ${P.bot_pre} 日至底后 ${P.bot_post} 日内的有 <b>${B.caught}</b> 个。${B.missed.length ? "没抓到：" + B.missed.join("、") + "。" : ""}</p>
-    <p>亮灯后 ${P.fwd} 日纳指平均 <b class="${cls(B.fwd)}">${pctf(B.fwd)}</b>（${(B.neg * 100).toFixed(0)}% 的次数为负）；
-    所有日子平均 <b>${pctf(B.base_fwd)}</b>，<b>纳指已跌 10% 以上的所有日子平均 ${pctf(B.base_down)}</b>——超额主要来自「已经跌下来了」本身。</p></div>`;
+function drawMini() {
+  const svg = $("mini"), W = svg.clientWidth || 800, H = 52, L = TH / 2, pw = W - TH;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  const X = (i) => L + (i - S0) / (n - 1 - S0) * pw;
+  let lo = Infinity, hi = -Infinity;
+  for (let i = S0; i < n; i++) { const v = Math.log10(D.n[i]); lo = Math.min(lo, v); hi = Math.max(hi, v); }
+  const Y = (v) => 6 + (1 - (Math.log10(v) - lo) / (hi - lo)) * (H - 12);
+  let d = "";
+  for (let i = S0; i < n; i++) d += (i === S0 ? "M" : "L") + X(i).toFixed(1) + " " + Y(D.n[i]).toFixed(1);
+  let g = `<rect x="${L}" y="0" width="${pw}" height="${H}" rx="6" fill="${css("--bg")}" />`;
+  if (iDesign > S0) g += `<rect x="${L}" y="0" width="${X(iDesign) - L}" height="${H}" fill="${css("--grid")}" opacity=".7" />`;
+  g += `<rect x="${X(i0)}" y="0" width="${X(i1) - X(i0)}" height="${H}" fill="${css("--nas")}" opacity=".12" />`;
+  g += `<path d="${d}" fill="none" stroke="${css("--nas")}" stroke-width="1.2" opacity=".85" />`;
+  for (let y = +D.d[S0].slice(0, 4) + 1; y <= +D.d[n - 1].slice(0, 4); y++) {
+    if (y % (W < 500 ? 4 : 2)) continue;              // 窄屏每 4 年标一次
+    const i = D.d.findIndex((x) => x >= y + "-01-01");
+    g += `<text x="${X(i)}" y="${H - 4}" text-anchor="middle" font-size="10" fill="${css("--muted")}">${y}</text>`;
+  }
+  svg.innerHTML = g;
+}
+
+let raf = 0;
+function setRange(a, b, preset) {
+  i0 = Math.max(S0, Math.min(a, n - 1 - GAP)); i1 = Math.min(n - 1, Math.max(b, i0 + GAP));
+  ra.value = i0; rb.value = i1;
+  ra.style.zIndex = i0 > (S0 + n - 1) / 2 ? 3 : 1;  // 终点手柄在 2 层；两个手柄挤在右端时，起点手柄要在上面才拖得动
+  btns.forEach((x) => x.classList.toggle("on", x.dataset.p === preset));
+  $("range-lab").textContent = `${D.d[i0]} — ${D.d[i1]}（${yrs(i0, i1)} 年）`;
+  try { localStorage.setItem("ccc-range", JSON.stringify(preset ? { p: preset } : { a: D.d[i0], b: D.d[i1] })); } catch (e) {}
+  cancelAnimationFrame(raf);
+  raf = requestAnimationFrame(() => { drawMini(); draw(); renderStats(); });
+}
+btns.forEach((b) => b.addEventListener("click", () => setRange(...PRESETS[b.dataset.p](), b.dataset.p)));
+ra.addEventListener("input", () => setRange(Math.min(+ra.value, i1 - GAP), i1));
+rb.addEventListener("input", () => setRange(i0, Math.max(+rb.value, i0 + GAP)));
+
+let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { drawMini(); draw(); }, 120); });
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => { drawMini(); draw(); });
+
+// ---------- 统计与表格（按所选时间范围重算；口径与 signals.evaluate 相同） ----------
+const fwdN = D.n.map((v, i) => i + P.fwd < n ? D.n[i + P.fwd] / v - 1 : null);
+const minN = D.n.map((v, i) => {
+  if (i + P.fwd_long >= n) return null;
+  let m = Infinity;
+  for (let k = i; k <= i + P.fwd_long; k++) m = Math.min(m, D.n[k]);
+  return m / v - 1;
+});
+const mean = (a) => { a = a.filter((x) => x != null); return a.length ? a.reduce((s, x) => s + x, 0) / a.length : null; };
+const caughtTop = (t) => D.top_events.some((e) => t - e.i >= -P.top_pre && t - e.i <= P.top_lead);
+const caughtBot = (b) => D.bot_events.some((e) => e.i - b >= -P.bot_pre && e.i - b <= P.bot_post);
+
+function stats(a, b) {
+  const inR = (i) => i >= a && i <= b;
+  const te = D.top_events.filter((e) => inR(e.i)), be = D.bot_events.filter((e) => inR(e.i));
+  const tp = tops.filter(inR), bt = bots.filter(inR);
+  const live = [];
+  for (let i = a; i <= b; i++) if (D.ma200[i] != null && D.dd[i] != null) live.push(i);
+  return {
+    top: { n: te.length, tops: tp.length, caught: tp.filter(caughtTop).length, missed: tp.filter((t) => !caughtTop(t)).map((t) => D.d[t]),
+      fwd: mean(te.map((e) => e.fwd)), mdd: mean(te.map((e) => e.mdd)),
+      base_fwd: mean(live.filter((i) => D.dd[i] >= -P.top_near).map((i) => fwdN[i])),
+      base_mdd: mean(live.filter((i) => D.dd[i] >= -P.top_near).map((i) => minN[i])) },
+    bot: { n: be.length, bottoms: bt.length, caught: bt.filter(caughtBot).length, missed: bt.filter((t) => !caughtBot(t)).map((t) => D.d[t]),
+      fwd: mean(be.map((e) => e.fwd)), neg: mean(be.filter((e) => e.fwd != null).map((e) => (e.fwd < 0 ? 1 : 0))),
+      base_fwd: mean(live.map((i) => fwdN[i])), base_down: mean(live.filter((i) => D.dd[i] <= -P.bot_dd).map((i) => fwdN[i])) },
+    te, be,
+  };
+}
 
 const th = (cols) => "<tr>" + cols.map((c) => `<th>${c}</th>`).join("") + "</tr>";
-$("t-top").innerHTML = th(["日期", "利差", "200 日线", "纳指距高点", `之后 ${P.fwd} 日`, `之后 ${P.fwd_long} 日最大回撤`, "结果"]) +
-  D.top_events.slice().reverse().map((e) => `<tr><td>${e.date}</td><td>${f2(e.s)}%</td><td>${f2(e.ma200)}%</td><td>${pctf(e.dd)}</td>
-    <td class="${cls(e.fwd)}">${pctf(e.fwd)}</td><td class="${cls(e.mdd)}">${pctf(e.mdd)}</td>
-    <td>${e.hit ? `${e.lead >= 0 ? "提前 " + e.lead : "滞后 " + -e.lead} 个交易日，顶在 ${e.hit}` : (e.open ? "观察期未满" : "之后没有下跌顶")}</td></tr>`).join("");
-$("t-bot").innerHTML = th(["日期", "利差", `${P.bot_look} 日内最高分位`, "纳指距高点", `之后 ${P.fwd} 日`, `之后 ${P.fwd} 日内再跌`, "结果"]) +
-  D.bot_events.slice().reverse().map((e) => `<tr><td>${e.date}</td><td>${f2(e.s)}%</td><td>${e.pct.toFixed(0)}</td><td>${pctf(e.dd)}</td>
-    <td class="${cls(e.fwd)}">${pctf(e.fwd)}</td><td class="${cls(e.worse)}">${pctf(e.worse)}</td>
-    <td>${e.hit ? `底在 ${e.hit}（亮灯${e.lag >= 0 ? "晚 " + e.lag : "早 " + -e.lag} 个交易日）` : (e.open ? "观察期未满" : "附近没有确认的底部")}</td></tr>`).join("");
+const empty = (k) => `<tr><td colspan="${k}" style="color:var(--muted)">所选时间范围内没有亮过</td></tr>`;
+function renderStats() {
+  const st = stats(i0, i1), T = st.top, B = st.bot;
+  const part = iDesign <= i0 ? "全部在制定期内（样本内）" : iDesign > i1 ? "全部是样本外（规则制定时没看过）"
+    : `其中 ${P.design_from} 以前是样本外、以后是制定期（样本内）`;
+  $("stat-range").textContent = `统计区间：${D.d[i0]} 至 ${D.d[i1]}，跟着上方的时间范围变；${part}。`;
+  $("stat").innerHTML =
+    `<div class="card"><div class="title" style="font-weight:650"><span class="ico-top">▼</span> 见顶预警</div>
+      <p>区间内亮了 <b>${T.n}</b> 次；区间内的 <b>${T.tops}</b> 个下跌顶（一年新高、之后 63 日内跌 11% 以上）里，
+      亮灯后 ${P.top_lead} 个交易日内（或顶后 ${P.top_pre} 日内）出现的有 <b>${T.caught}</b> 个。${T.missed.length ? "没抓到：" + T.missed.join("、") + "。" : ""}</p>
+      <p>亮灯后 ${P.fwd} 日纳指平均 <b class="${cls(T.fwd)}">${pctf(T.fwd)}</b>，同样处在高点 5% 以内的所有日子平均 <b>${pctf(T.base_fwd)}</b>；
+      之后 ${P.fwd_long} 日内最大回撤平均 <b>${pctf(T.mdd)}</b>，基准 <b>${pctf(T.base_mdd)}</b>。</p></div>` +
+    `<div class="card"><div class="title" style="font-weight:650"><span class="ico-bot">▲</span> 见底预警</div>
+      <p>区间内亮了 <b>${B.n}</b> 次；区间内的 <b>${B.bottoms}</b> 个底部（前后 63 日最低、比一年高点低 15% 以上）里，
+      亮灯落在底前 ${P.bot_pre} 日至底后 ${P.bot_post} 日内的有 <b>${B.caught}</b> 个。${B.missed.length ? "没抓到：" + B.missed.join("、") + "。" : ""}</p>
+      <p>亮灯后 ${P.fwd} 日纳指平均 <b class="${cls(B.fwd)}">${pctf(B.fwd)}</b>${B.neg == null ? "" : `（${(B.neg * 100).toFixed(0)}% 的次数为负）`}；
+      所有日子平均 <b>${pctf(B.base_fwd)}</b>，<b>纳指已跌 10% 以上的所有日子平均 ${pctf(B.base_down)}</b>——两者接近时，超额主要来自「已经跌下来了」本身。</p></div>`;
 
-$("lim-from").textContent = SM.from; $("lim-tops").textContent = T.tops; $("lim-bots").textContent = B.bottoms;
+  $("t-top").innerHTML = th(["日期", "利差", "200 日线", "纳指距高点", `之后 ${P.fwd} 日`, `之后 ${P.fwd_long} 日最大回撤`, "结果"]) +
+    (st.te.length ? st.te.slice().reverse().map((e) => `<tr><td>${e.date}</td><td>${f2(e.s)}%</td><td>${f2(e.ma200)}%</td><td>${pctf(e.dd)}</td>
+      <td class="${cls(e.fwd)}">${pctf(e.fwd)}</td><td class="${cls(e.mdd)}">${pctf(e.mdd)}</td>
+      <td>${e.hit ? `${e.lead >= 0 ? "提前 " + e.lead : "滞后 " + -e.lead} 个交易日，顶在 ${e.hit}` : (e.open ? "观察期未满" : "之后没有下跌顶")}</td></tr>`).join("") : empty(7));
+  $("t-bot").innerHTML = th(["日期", "利差", `${P.bot_look} 日内最高分位`, "纳指距高点", `之后 ${P.fwd} 日`, `之后 ${P.fwd} 日内再跌`, "结果"]) +
+    (st.be.length ? st.be.slice().reverse().map((e) => `<tr><td>${e.date}</td><td>${f2(e.s)}%</td><td>${e.pct.toFixed(0)}</td><td>${pctf(e.dd)}</td>
+      <td class="${cls(e.fwd)}">${pctf(e.fwd)}</td><td class="${cls(e.worse)}">${pctf(e.worse)}</td>
+      <td>${e.hit ? `底在 ${e.hit}（亮灯${e.lag >= 0 ? "晚 " + e.lag : "早 " + -e.lag} 个交易日）` : (e.open ? "观察期未满" : "附近没有确认的底部")}</td></tr>`).join("") : empty(7));
+}
+
+// 页面打开时恢复上次的时间范围（预设按钮记名字、自定义记日期），默认全部
+(() => {
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem("ccc-range") || "null"); } catch (e) {}
+  if (saved && PRESETS[saved.p]) return setRange(...PRESETS[saved.p](), saved.p);
+  const a = saved && D.d.indexOf(saved.a), b = saved && D.d.indexOf(saved.b);
+  if (a >= S0 && b > a) return setRange(a, b, null);
+  setRange(...PRESETS.all(), "all");
+})();
+cancelAnimationFrame(raf); drawMini(); draw(); renderStats();   // 首屏同步画，不等下一帧
+
+const full = stats(S0, n - 1);
+$("lim-from").textContent = D.d[S0]; $("lim-tops").textContent = full.top.tops; $("lim-bots").textContent = full.bot.bottoms;
+document.querySelectorAll(".lim-design").forEach((x) => { x.textContent = P.design_from; });
+$("oos-lab").textContent = `样本外（${P.design_from} 以前，规则制定时没看过）`;
 const leads = D.top_events.filter((e) => e.hit && e.lead >= 0).map((e) => e.lead);
 $("lim-lead").textContent = leads.length ? `抓到的顶里，从亮灯到真正见顶过去要 ${Math.min(...leads)}~${Math.max(...leads)} 个交易日；` : "";
 
