@@ -53,6 +53,27 @@ class TestSignals(unittest.TestCase):
         self.assertTrue(all(c.values()))
 
 
+class TestSeries(unittest.TestCase):
+    def test_diff_series(self):
+        self.assertEqual(G.diff_series({"a": 10.0, "b": 12.0, "c": 9.0}, {"a": 3.0, "c": 2.5}), {"a": 7.0, "c": 6.5})
+
+    def test_build_two_series(self):
+        # 有 BB 时页面数据里多一套 CCC−BB，日期与纳指共用；没有 BB 时只有 CCC
+        import make_page
+        days = ["2020-%02d-%02d" % (1 + k // 28, 1 + k % 28) for k in range(12 * 28)] + \
+               ["2021-%02d-%02d" % (1 + k // 28, 1 + k % 28) for k in range(4 * 28)]
+        nas = {d: 100.0 + i for i, d in enumerate(days)}
+        ccc = {d: 8.0 + (i % 50) / 25 for i, d in enumerate(days)}
+        bb = {d: 2.0 + (i % 30) / 30 for i, d in enumerate(days)}
+        data, _ = make_page.build(ccc, nas, {}, bb)
+        self.assertEqual(sorted(data["series"]), ["ccc", "ccc_bb"])
+        x = data["series"]["ccc_bb"]
+        self.assertAlmostEqual(x["cur"]["s"], ccc[days[-1]] - bb[days[-1]], places=6)
+        self.assertEqual(len(x["s"]), len(data["d"]))
+        only, _ = make_page.build(ccc, nas, {})
+        self.assertEqual(list(only["series"]), ["ccc"])
+
+
 class TestFetch(unittest.TestCase):
     def test_parse_fred(self):
         txt = "observation_date,BAMLH0A3HYC\n2026-10-19,13.10\n2026-10-20,.\n2026-10-21,\n2026-10-22,13.30\n"

@@ -1,4 +1,4 @@
-"""一条龙：从 FRED 下载 → 重算信号 → 生成 dashboard.html。
+"""一条龙：从 FRED 下载 → 重算信号（CCC 与 CCC−BB 各一套）→ 生成 dashboard.html。
 
   python3 update.py             本地：data/ 只读，新数据写进 cache/
   python3 update.py --offline   不下载，只用本地已有数据重算
@@ -47,15 +47,15 @@ def main(argv):
     else:
         print("① 从 FRED 下载最新数据…")
         status = fetch.update(ci=ci)
-    ccc, nas = fetch.load_local("ccc_oas"), fetch.load_local("nasdaq")
+    ccc, nas, bb = fetch.load_local("ccc_oas"), fetch.load_local("nasdaq"), fetch.load_local("bb_oas")
     if not ccc or not nas:
         print("❌ 本地没有可用数据（data/ 里的 CSV 缺失），也没下载到。")
         return 2
 
     print("② 重算信号…")
-    data, _ = make_page.build(ccc, nas, status)
+    data, _ = make_page.build(ccc, nas, status, bb)
     out = make_page.render(data)
-    c = data["cur"]
+    c = data["series"]["ccc"]["cur"]
     pct = "—" if c["pct"] is None else "%.0f" % c["pct"]
     print("   截至 %s：利差 %.2f%%，252 日分位 %s，阶段「%s」，纳指距一年高点 %+.1f%%"
           % (c["date"], c["s"], pct, c["phase"], c["dd"] * 100))
@@ -63,6 +63,13 @@ def main(argv):
         last = c["last_" + key]
         state = "今日触发！" if c[key + "_today"] else ("条件满足（冷却期内）" if c[key + "_raw_today"] else "未触发")
         print("   %s：%s；最近一次 %s" % (name, state, "%s（%d 个交易日前）" % (last["date"], last["ago"]) if last else "无"))
+    x = data["series"].get("ccc_bb")
+    if x:
+        xc = x["cur"]
+        print("   CCC−BB 利差 %.2f 个百分点（%s）：见顶预警 %s，见底预警 %s" % (
+            xc["s"], xc["date"], "今日触发！" if xc["top_today"] else "未触发", "今日触发！" if xc["bot_today"] else "未触发"))
+    else:
+        print("   没有 BB 利差数据，页面只显示 CCC")
     print("③ 页面已生成：%s" % out)
 
     # 流水线写 ci_status.json（进 git，留诊断）；本地写 status.json（不进 git，免得 git pull 冲突）

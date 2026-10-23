@@ -115,6 +115,8 @@ tr:last-child td { border-bottom: 0; }
 .note li { margin: 6px 0; }
 .note ul, ul.note { padding-left: 20px; }
 .note code { background: var(--sunk); border: 1px solid var(--border); border-radius: 5px; padding: 0 5px; font-size: 13px; }
+.switch { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 20px; }
+.switch .sub { flex: 1 1 320px; }
 .stat { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .stat .card p { margin: 8px 0 0; font-size: 14px; color: var(--text2); }
 .stat .card p b { color: var(--text); }
@@ -131,6 +133,7 @@ tr:last-child td { border-bottom: 0; }
   <h1>CCC 垃圾债利差 · 见顶 / 见底预警</h1>
   <div class="sub" id="sub"></div>
   <div id="banner"></div>
+  <div class="switch" id="switch"><div class="seg" id="series"></div><span class="sub" id="series-note"></span></div>
 
   <div class="cards" id="cards"></div>
   <div class="sig" id="sig"></div>
@@ -158,7 +161,7 @@ tr:last-child td { border-bottom: 0; }
   <div class="panel"><div class="ph"><div class="pt">纳斯达克综合指数</div>
     <div class="legend"><span><span class="sw" style="border-color:var(--nas)"></span>收盘</span></div></div>
     <svg id="c-nas"></svg></div>
-  <div class="panel"><div class="ph"><div class="pt">CCC 及以下高收益债利差（OAS，%）</div>
+  <div class="panel"><div class="ph"><div class="pt" id="spread-title">CCC 及以下高收益债利差（OAS，%）</div>
     <div class="legend"><span><span class="sw" style="border-color:var(--ccc)"></span>利差</span>
       <span><span class="sw dash" style="border-color:var(--ma)"></span>200 日均线</span></div></div>
     <svg id="c-ccc"></svg></div>
@@ -180,23 +183,21 @@ tr:last-child td { border-bottom: 0; }
   <h2>规则</h2>
   <div class="note" id="rules"></div>
 
-  <h2>局限（看信号前先读）</h2>
+  <h2>模型的经济学逻辑</h2>
   <ul class="note">
-    <li><b>样本很小。</b>页面上的整段数据（<span id="lim-from"></span> 起）里只有 <span id="lim-tops"></span> 个下跌顶、<span id="lim-bots"></span> 个底部。任何一个百分比都只代表几次事件。</li>
-    <li><b>规则是看过 <span class="lim-design"></span> 以后的数据才定的。</b>参数虽然取了整数、没有逐个优化，但候选规则是在这段数据上比较后选出来的，这段（「制定期」）的统计是样本内。
-      <span class="lim-design"></span> 以前（「样本外」，图上浅灰底）规则没看过，只原样跑了一次、没有回头调参——要判断规则靠不靠得住，主要看这一段。</li>
-    <li><b>见底预警没有超额，长危机里会报早。</b>纳指只要已经跌了 10% 以上，之后 63 日平均就和见底预警之后差不多，样本外更差（切到「样本外」看）。它的作用更多是告诉你「信用恐慌已经开始回落」，不是抄底信号。</li>
-    <li><b>2008、2022 那类熊市是它的盲区。</b>利差在熊市里反复冲高回落，见底预警会连着亮：2022 年 03、05、07、10 月，03-21 那次之后又跌了 23%；2008-07-23 亮灯后又跌 27%，2009-03 的大底反而没报（08 年 12 月的极值还在一年窗口里，分位到不了 95）。</li>
-    <li><b>利差低点通常比股票顶早几个月</b>（2021、2022、2024、2026 都是这样），所以见顶预警是「背离」提示，不是择时信号：<span id="lim-lead"></span>也有亮了却没出顶的时候，规则也只在上穿那天报一次。</li>
-    <li><b>数据：</b>FRED 上 ICE 系列只提供最近约 3 年，更早的历史来自仓库里的存档；ICE 数据有版权限制，不要公开转载。</li>
+    <li><b>利差不全是风险偏好。</b>CCC 利差 ≈ 预期违约损失 + 风险溢价 + 流动性溢价。真正对应「风险偏好」的只有中间那项，也就是投资者为承担风险额外要求的补偿；另外两项会干扰读数。</li>
+    <li><b>为什么用 CCC。</b>它是最边缘的风险资产：风险偏好一收缩，资金最先从这里撤，所以它对风险偏好的变化最敏感。</li>
+    <li><b>信用投资者更怕下跌。</b>持有债券相当于卖出一份违约保护：涨幅封顶，违约时损失很大，所以他们对尾部风险的反应往往比股票投资者早。这就是见顶预警的逻辑：利差先转坏，股价还在高位，两者背离。
+      2006-10 以来的 10 个下跌顶里，利差低点比纳指的顶早，中位约 37 个交易日；到了底部，利差高点和纳指低点基本同步（中位只晚约 3 天），所以见底预警的滞后主要来自「跌破 10 日线」这道确认。</li>
+    <li><b>学术上有支持。</b>Gilchrist–Zakrajšek（2012）把信用利差拆成「违约基本面能解释的部分」和「超额债券溢价（EBP）」，真正能预测经济和股市的主要是 EBP，也就是风险偏好那部分。Collin-Dufresne 等（2001）也发现，利差的日常变化大多不能用违约因素解释。</li>
   </ul>
 </div>
 <div id="tip"></div>
 
 <script>
-const D = /*__DATA__*/null;
-const P = D.params, C = D.cur, SM = D.summary;
-const n = D.d.length;
+const ALL = /*__DATA__*/null;
+const P = ALL.params, SERIES = ALL.series;
+const n = ALL.d.length;
 const $ = (id) => document.getElementById(id);
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const f2 = (x) => x == null ? "—" : x.toFixed(2);
@@ -205,8 +206,23 @@ const num = (x) => x == null ? "—" : x.toLocaleString("en-US", { maximumFracti
 const cls = (x) => x == null ? "" : (x < 0 ? "neg" : "pos");
 const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
 
+// ---------- 利差序列：CCC / CCC−BB，切换时换掉 D 再重画（日期、纳指两者共用） ----------
+let KEY = "ccc", D, C, SM, topSet, botSet, charts;
+try { const k = localStorage.getItem("ccc-series"); if (SERIES[k]) KEY = k; } catch (e) {}
+function pick(k) {
+  KEY = SERIES[k] ? k : "ccc";
+  D = Object.assign({}, ALL, SERIES[KEY]); C = D.cur; SM = D.summary;
+  topSet = new Map(D.top_events.map((e) => [e.i, e]));
+  botSet = new Map(D.bot_events.map((e) => [e.i, e]));
+  charts = [
+    { id: "c-nas", h: 320, series: [{ a: D.n, c: "--nas", w: 1.8, area: true }], fmt: num, events: true },
+    { id: "c-ccc", h: 230, series: [{ a: D.ma200, c: "--ma", w: 1.4, dash: "5 4" }, { a: D.s, c: "--ccc", w: 1.6, area: true }], fmt: (v) => v.toFixed(0) + "%" },
+    { id: "c-pct", h: 160, series: [{ a: D.pct, c: "--ccc", w: 1.3 }], fmt: (v) => v.toFixed(0), fixed: [0, 100], zones: true },
+  ];
+}
+pick(KEY);
+
 // ---------- 顶部 ----------
-$("sub").textContent = `数据截至 ${C.date}（纳指交易日）· 利差最新 ${D.ccc_latest.date} ${f2(D.ccc_latest.v)}% · 页面生成于 ${D.generated}`;
 const bad = Object.entries(D.fetch || {}).filter(([, v]) => v && v.ok === false);
 if (bad.length) {
   $("banner").innerHTML = `<div class="banner">⚠ 本次下载失败，页面用的是本地已有数据：` +
@@ -214,41 +230,45 @@ if (bad.length) {
 }
 const card = (k, v, h) => `<div class="card"><div class="k">${k}</div><div class="v">${v}</div><div class="h">${h}</div></div>`;
 const phaseNote = { "压力": "利差在一年里的 95 分位以上", "自满": "利差在一年里的 10 分位以下", "走阔": "利差在 200 日线上方", "平稳": "利差在 200 日线下方", "—": "" };
-$("cards").innerHTML =
-  card("CCC 利差", f2(C.s) + "%", `20 日变化 ${C.chg20 == null ? "—" : (C.chg20 >= 0 ? "+" : "") + C.chg20.toFixed(2)} 个百分点`) +
-  card("252 日分位", C.pct == null ? "—" : C.pct.toFixed(0), `阶段：${C.phase} · ${phaseNote[C.phase] || ""}`) +
-  card("相对 200 日均线", pctf(C.gap200), `200 日均线 ${f2(C.ma200)}%`) +
-  card("纳斯达克综合", num(C.n), `距一年最高收盘 ${pctf(C.dd)}`);
-
 const li = (ok, label, detail) => `<li><span class="mark ${ok ? "ok" : "no"}">${ok ? "✓" : ""}</span><span class="${ok ? "ok" : "no"}"><b>${label}</b>${detail ? "　" + detail : ""}</span></li>`;
-const tc = C.top_cond || {}, bc = C.bot_cond || {};
 const lastTxt = (e, name) => e ? `最近一次${name}：${e.date}（${e.ago} 个交易日前）` : `历史上还没有${name}`;
-const topOn = C.top_today, botOn = C.bot_today;
-$("sig").innerHTML =
-  `<div class="card ${topOn ? "on-top" : ""}"><div class="title"><span class="ico-top">▼</span>见顶预警
-     <span class="badge ${topOn ? "on-top" : "off"}">${topOn ? "▼ 今日触发" : (C.top_raw_today ? "条件满足（冷却期内）" : "未触发")}</span></div>
-   <ul class="conds">
-     ${li(tc.cross, "利差今日上穿 200 日均线", tc.above ? "（利差已在线上方，上穿发生在之前）" : "（利差在线下方）")}
-     ${li(tc.near, `纳指距一年高点不到 ${(P.top_near * 100).toFixed(0)}%`, `（现在 ${pctf(C.dd)}）`)}
-   </ul>
-   ${C.above_since && tc.near ? `<div class="last"><b style="color:var(--text)">背离持续中</b>：利差自 ${C.above_since.date} 起连续 ${C.above_since.days} 个交易日在 200 日线上方，纳指仍在高点 ${(P.top_near * 100).toFixed(0)}% 以内。规则只在上穿那天报一次，这段时间不会重复亮灯。</div>` : ""}
-   <div class="last">${lastTxt(C.last_top, "见顶预警")}</div></div>` +
-  `<div class="card ${botOn ? "on-bot" : ""}"><div class="title"><span class="ico-bot">▲</span>见底预警
-     <span class="badge ${botOn ? "on-bot" : "off"}">${botOn ? "▲ 今日触发" : (C.bot_raw_today ? "条件满足（冷却期内）" : "未触发")}</span></div>
-   <ul class="conds">
-     ${li(bc.panic, `${P.bot_look} 日内利差曾到 ${P.bot_pct} 分位以上`, `（${P.bot_look} 日内最高 ${C.panic_max20 == null ? "—" : C.panic_max20.toFixed(0)}）`)}
-     ${li(bc.below, `利差跌破 ${P.bot_ma} 日均线`, "")}
-     ${li(bc.falling, `${P.bot_ma} 日均线比 ${P.bot_slope} 日前低`, "")}
-     ${li(bc.drawdown, `纳指距一年高点已跌 ${(P.bot_dd * 100).toFixed(0)}% 以上`, `（现在 ${pctf(C.dd)}）`)}
-   </ul>
-   <div class="last">${lastTxt(C.last_bot, "见底预警")}</div></div>`;
+function renderTop() {
+  $("sub").textContent = `数据截至 ${C.date}（纳指交易日）· ${D.short}最新 ${D.latest.date} ${f2(D.latest.v)}% · 页面生成于 ${D.generated}`;
+  $("series-note").textContent = D.note;
+  $("spread-title").textContent = D.title;
+  document.querySelectorAll("#series button").forEach((b) => b.classList.toggle("on", b.dataset.k === KEY));
+  $("cards").innerHTML =
+    card(D.short, f2(C.s) + "%", `20 日变化 ${C.chg20 == null ? "—" : (C.chg20 >= 0 ? "+" : "") + C.chg20.toFixed(2)} 个百分点`) +
+    card("252 日分位", C.pct == null ? "—" : C.pct.toFixed(0), `阶段：${C.phase} · ${phaseNote[C.phase] || ""}`) +
+    card("相对 200 日均线", pctf(C.gap200), `200 日均线 ${f2(C.ma200)}%`) +
+    card("纳斯达克综合", num(C.n), `距一年最高收盘 ${pctf(C.dd)}`);
+
+  const tc = C.top_cond || {}, bc = C.bot_cond || {};
+  const topOn = C.top_today, botOn = C.bot_today;
+  $("sig").innerHTML =
+    `<div class="card ${topOn ? "on-top" : ""}"><div class="title"><span class="ico-top">▼</span>见顶预警
+       <span class="badge ${topOn ? "on-top" : "off"}">${topOn ? "▼ 今日触发" : (C.top_raw_today ? "条件满足（冷却期内）" : "未触发")}</span></div>
+     <ul class="conds">
+       ${li(tc.cross, "利差今日上穿 200 日均线", tc.above ? "（利差已在线上方，上穿发生在之前）" : "（利差在线下方）")}
+       ${li(tc.near, `纳指距一年高点不到 ${(P.top_near * 100).toFixed(0)}%`, `（现在 ${pctf(C.dd)}）`)}
+     </ul>
+     ${C.above_since && tc.near ? `<div class="last"><b style="color:var(--text)">背离持续中</b>：利差自 ${C.above_since.date} 起连续 ${C.above_since.days} 个交易日在 200 日线上方，纳指仍在高点 ${(P.top_near * 100).toFixed(0)}% 以内。规则只在上穿那天报一次，这段时间不会重复亮灯。</div>` : ""}
+     <div class="last">${lastTxt(C.last_top, "见顶预警")}</div></div>` +
+    `<div class="card ${botOn ? "on-bot" : ""}"><div class="title"><span class="ico-bot">▲</span>见底预警
+       <span class="badge ${botOn ? "on-bot" : "off"}">${botOn ? "▲ 今日触发" : (C.bot_raw_today ? "条件满足（冷却期内）" : "未触发")}</span></div>
+     <ul class="conds">
+       ${li(bc.panic, `${P.bot_look} 日内利差曾到 ${P.bot_pct} 分位以上`, `（${P.bot_look} 日内最高 ${C.panic_max20 == null ? "—" : C.panic_max20.toFixed(0)}）`)}
+       ${li(bc.below, `利差跌破 ${P.bot_ma} 日均线`, "")}
+       ${li(bc.falling, `${P.bot_ma} 日均线比 ${P.bot_slope} 日前低`, "")}
+       ${li(bc.drawdown, `纳指距一年高点已跌 ${(P.bot_dd * 100).toFixed(0)}% 以上`, `（现在 ${pctf(C.dd)}）`)}
+     </ul>
+     <div class="last">${lastTxt(C.last_bot, "见底预警")}</div></div>`;
+}
 
 // ---------- 图 ----------
-const topSet = new Map(D.top_events.map((e) => [e.i, e]));
-const botSet = new Map(D.bot_events.map((e) => [e.i, e]));
 const idxOf = (ds) => ds.map((d) => D.d.indexOf(d)).filter((i) => i >= 0);
 const tops = idxOf(SM.top_dates), bots = idxOf(SM.bot_dates);
-const S0 = D.i_start;                                   // 之前只是均线 / 分位的预热，不画
+const S0 = D.i_start;                                   // 之前只是均线 / 分位的预热，不画（两个序列取较晚的那天）
 const iDesign = D.d.findIndex((d) => d >= P.design_from); // 制定期第一天；之前是样本外
 let i0 = S0, i1 = n - 1;
 const PAD = { l: 56, r: 14, t: 14, b: 26 };
@@ -260,12 +280,6 @@ function niceTicks(lo, hi, k) {
   for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) out.push(+v.toFixed(10));
   return out;
 }
-
-const charts = [
-  { id: "c-nas", h: 320, series: [{ a: D.n, c: "--nas", w: 1.8, area: true }], fmt: num, events: true },
-  { id: "c-ccc", h: 230, series: [{ a: D.ma200, c: "--ma", w: 1.4, dash: "5 4" }, { a: D.s, c: "--ccc", w: 1.6, area: true }], fmt: (v) => v.toFixed(0) + "%" },
-  { id: "c-pct", h: 160, series: [{ a: D.pct, c: "--ccc", w: 1.3 }], fmt: (v) => v.toFixed(0), fixed: [0, 100], zones: true },
-];
 
 function draw() {
   charts.forEach((ch) => {
@@ -365,7 +379,7 @@ function hover(ch, cx, cy) {
   });
   const row = (k, v, c) => `<div class="row"><span>${c ? `<i class="dot" style="background:var(${c})"></i>` : ""}${k}</span><b>${v}</b></div>`;
   let h = `<div class="d">${D.d[i]}</div>` + row("纳指", num(D.n[i]), "--nas") + row("距一年高点", pctf(D.dd[i])) +
-    row("CCC 利差", D.s[i] == null ? "—" : f2(D.s[i]) + "%", "--ccc") + row("200 日均线", D.ma200[i] == null ? "—" : f2(D.ma200[i]) + "%", "--ma") +
+    row(D.short, D.s[i] == null ? "—" : f2(D.s[i]) + "%", "--ccc") + row("200 日均线", D.ma200[i] == null ? "—" : f2(D.ma200[i]) + "%", "--ma") +
     row("252 日分位", D.pct[i] == null ? "—" : D.pct[i].toFixed(0));
   if (topSet.has(i)) h += `<div class="ev ico-top">▼ 见顶预警</div>`;
   if (botSet.has(i)) h += `<div class="ev ico-bot">▲ 见底预警</div>`;
@@ -443,6 +457,12 @@ const minN = D.n.map((v, i) => {
   for (let k = i; k <= i + P.fwd_long; k++) m = Math.min(m, D.n[k]);
   return m / v - 1;
 });
+const belowN = D.n.map((v, i) => {
+  if (i + P.fwd_long >= n) return null;
+  let m = -Infinity;
+  for (let k = i; k <= i + P.fwd_long; k++) m = Math.max(m, D.n[k]);
+  return v / m - 1;
+});
 const mean = (a) => { a = a.filter((x) => x != null); return a.length ? a.reduce((s, x) => s + x, 0) / a.length : null; };
 const caughtTop = (t) => D.top_events.some((e) => t - e.i >= -P.top_pre && t - e.i <= P.top_lead);
 const caughtBot = (b) => D.bot_events.some((e) => e.i - b >= -P.bot_pre && e.i - b <= P.bot_post);
@@ -455,7 +475,8 @@ function stats(a, b) {
   for (let i = a; i <= b; i++) if (D.ma200[i] != null && D.dd[i] != null) live.push(i);
   return {
     top: { n: te.length, tops: tp.length, caught: tp.filter(caughtTop).length, missed: tp.filter((t) => !caughtTop(t)).map((t) => D.d[t]),
-      fwd: mean(te.map((e) => e.fwd)), mdd: mean(te.map((e) => e.mdd)),
+      fwd: mean(te.map((e) => e.fwd)), mdd: mean(te.map((e) => e.mdd)), below: mean(te.map((e) => e.below)),
+      base_below: mean(live.filter((i) => D.dd[i] >= -P.top_near).map((i) => belowN[i])),
       base_fwd: mean(live.filter((i) => D.dd[i] >= -P.top_near).map((i) => fwdN[i])),
       base_mdd: mean(live.filter((i) => D.dd[i] >= -P.top_near).map((i) => minN[i])) },
     bot: { n: be.length, bottoms: bt.length, caught: bt.filter(caughtBot).length, missed: bt.filter((t) => !caughtBot(t)).map((t) => D.d[t]),
@@ -476,18 +497,19 @@ function renderStats() {
     `<div class="card"><div class="title" style="font-weight:650"><span class="ico-top">▼</span> 见顶预警</div>
       <p>区间内亮了 <b>${T.n}</b> 次；区间内的 <b>${T.tops}</b> 个下跌顶（一年新高、之后 63 日内跌 11% 以上）里，
       亮灯后 ${P.top_lead} 个交易日内（或顶后 ${P.top_pre} 日内）出现的有 <b>${T.caught}</b> 个。${T.missed.length ? "没抓到：" + T.missed.join("、") + "。" : ""}</p>
-      <p>亮灯后 ${P.fwd} 日纳指平均 <b class="${cls(T.fwd)}">${pctf(T.fwd)}</b>，同样处在高点 5% 以内的所有日子平均 <b>${pctf(T.base_fwd)}</b>；
-      之后 ${P.fwd_long} 日内最大回撤平均 <b>${pctf(T.mdd)}</b>，基准 <b>${pctf(T.base_mdd)}</b>。</p></div>` +
+      <p>亮灯那天纳指距之后 ${P.fwd_long} 日内的最高收盘平均 <b>${pctf(T.below)}</b>（越接近 0 越接近顶部），
+      从亮灯那天算之后 ${P.fwd_long} 日内最大跌幅平均 <b>${pctf(T.mdd)}</b>；同样处在高点 5% 以内的所有日子分别是 <b>${pctf(T.base_below)}</b>、<b>${pctf(T.base_mdd)}</b>。</p>
+      <p style="color:var(--muted)">参考：亮灯后 ${P.fwd} 日纳指平均 ${pctf(T.fwd)}，基准 ${pctf(T.base_fwd)}。固定天数的收益受终点落在哪里影响很大（落在暴跌底部还是反弹途中），不宜单独用来比较时机。</p></div>` +
     `<div class="card"><div class="title" style="font-weight:650"><span class="ico-bot">▲</span> 见底预警</div>
       <p>区间内亮了 <b>${B.n}</b> 次；区间内的 <b>${B.bottoms}</b> 个底部（前后 63 日最低、比一年高点低 15% 以上）里，
       亮灯落在底前 ${P.bot_pre} 日至底后 ${P.bot_post} 日内的有 <b>${B.caught}</b> 个。${B.missed.length ? "没抓到：" + B.missed.join("、") + "。" : ""}</p>
       <p>亮灯后 ${P.fwd} 日纳指平均 <b class="${cls(B.fwd)}">${pctf(B.fwd)}</b>${B.neg == null ? "" : `（${(B.neg * 100).toFixed(0)}% 的次数为负）`}；
       所有日子平均 <b>${pctf(B.base_fwd)}</b>，<b>纳指已跌 10% 以上的所有日子平均 ${pctf(B.base_down)}</b>——两者接近时，超额主要来自「已经跌下来了」本身。</p></div>`;
 
-  $("t-top").innerHTML = th(["日期", "利差", "200 日线", "纳指距高点", `之后 ${P.fwd} 日`, `之后 ${P.fwd_long} 日最大回撤`, "结果"]) +
+  $("t-top").innerHTML = th(["日期", "利差", "200 日线", "纳指距一年高点", `距之后 ${P.fwd_long} 日最高`, `之后 ${P.fwd_long} 日最大跌幅`, `之后 ${P.fwd} 日（参考）`, "结果"]) +
     (st.te.length ? st.te.slice().reverse().map((e) => `<tr><td>${e.date}</td><td>${f2(e.s)}%</td><td>${f2(e.ma200)}%</td><td>${pctf(e.dd)}</td>
-      <td class="${cls(e.fwd)}">${pctf(e.fwd)}</td><td class="${cls(e.mdd)}">${pctf(e.mdd)}</td>
-      <td>${e.hit ? `${e.lead >= 0 ? "提前 " + e.lead : "滞后 " + -e.lead} 个交易日，顶在 ${e.hit}` : (e.open ? "观察期未满" : "之后没有下跌顶")}</td></tr>`).join("") : empty(7));
+      <td>${pctf(e.below)}</td><td class="${cls(e.mdd)}">${pctf(e.mdd)}</td><td style="color:var(--muted)">${pctf(e.fwd)}</td>
+      <td>${e.hit ? `${e.lead >= 0 ? "提前 " + e.lead : "滞后 " + -e.lead} 个交易日，顶在 ${e.hit}` : (e.open ? "观察期未满" : "之后没有下跌顶")}</td></tr>`).join("") : empty(8));
   $("t-bot").innerHTML = th(["日期", "利差", `${P.bot_look} 日内最高分位`, "纳指距高点", `之后 ${P.fwd} 日`, `之后 ${P.fwd} 日内再跌`, "结果"]) +
     (st.be.length ? st.be.slice().reverse().map((e) => `<tr><td>${e.date}</td><td>${f2(e.s)}%</td><td>${e.pct.toFixed(0)}</td><td>${pctf(e.dd)}</td>
       <td class="${cls(e.fwd)}">${pctf(e.fwd)}</td><td class="${cls(e.worse)}">${pctf(e.worse)}</td>
@@ -505,22 +527,31 @@ function renderStats() {
 })();
 cancelAnimationFrame(raf); drawMini(); draw(); renderStats();   // 首屏同步画，不等下一帧
 
-const full = stats(S0, n - 1);
-$("lim-from").textContent = D.d[S0]; $("lim-tops").textContent = full.top.tops; $("lim-bots").textContent = full.bot.bottoms;
-document.querySelectorAll(".lim-design").forEach((x) => { x.textContent = P.design_from; });
 $("oos-lab").textContent = `样本外（${P.design_from} 以前，规则制定时没看过）`;
-const leads = D.top_events.filter((e) => e.hit && e.lead >= 0).map((e) => e.lead);
-$("lim-lead").textContent = leads.length ? `抓到的顶里，从亮灯到真正见顶过去要 ${Math.min(...leads)}~${Math.max(...leads)} 个交易日；` : "";
 
-$("rules").innerHTML = `<ul>
-  <li><b><span class="ico-top">▼</span> 见顶预警</b>：CCC 利差<b>上穿 ${P.top_ma} 日均线</b>（前一日在线下、当日在线上），且纳指收盘<b>距过去一年最高收盘不到 ${(P.top_near * 100).toFixed(0)}%</b>。
-    含义是信用趋势转坏、股价还在高位，两者背离。距上一次满足条件不到 ${P.top_cool} 个交易日的不再报。</li>
-  <li><b><span class="ico-bot">▲</span> 见底预警</b>：利差 <b>${P.bot_look} 日内曾到过去一年的第 ${P.bot_pct} 分位以上</b>（恐慌），当日<b>跌破 ${P.bot_ma} 日均线且 ${P.bot_ma} 日均线比 ${P.bot_slope} 日前低</b>（回落确认），
-    且纳指<b>距一年最高收盘已跌 ${(P.bot_dd * 100).toFixed(0)}% 以上</b>。距上一次满足条件不到 ${P.bot_cool} 个交易日的不再报。</li>
-  <li><b>阶段</b>（只是读数说明，不进信号）：分位 ≥ ${P.bot_pct} 为「压力」，≤ 10 为「自满」，其余按利差在 200 日线上方 / 下方记「走阔」/「平稳」。</li>
-  <li><b>日历</b>：以纳指交易日为准。ICE 利差在美股休市日也有数，每个交易日取当日或之前最近一个值；利差在 FRED 上一般晚一天发布，所以最新一天可能还是前一天的利差。</li>
-  <li>参数都在 <code>signals.py</code> 顶部。改了参数，上面的历史表现会跟着重算——但那就是在同一段数据上再挑一次，样本内的成绩会更好看，不代表以后更准。</li>
-</ul>`;
+function renderRules() {
+  $("rules").innerHTML = `<ul>
+    <li><b><span class="ico-top">▼</span> 见顶预警</b>：${D.short}<b>上穿 ${P.top_ma} 日均线</b>（前一日在线下、当日在线上），且纳指收盘<b>距过去一年最高收盘不到 ${(P.top_near * 100).toFixed(0)}%</b>。
+      含义是信用趋势转坏、股价还在高位，两者背离。距上一次满足条件不到 ${P.top_cool} 个交易日的不再报。</li>
+    <li><b><span class="ico-bot">▲</span> 见底预警</b>：利差 <b>${P.bot_look} 日内曾到过去一年的第 ${P.bot_pct} 分位以上</b>（恐慌），当日<b>跌破 ${P.bot_ma} 日均线且 ${P.bot_ma} 日均线比 ${P.bot_slope} 日前低</b>（回落确认），
+      且纳指<b>距一年最高收盘已跌 ${(P.bot_dd * 100).toFixed(0)}% 以上</b>。距上一次满足条件不到 ${P.bot_cool} 个交易日的不再报。</li>
+    <li><b>阶段</b>（只是读数说明，不进信号）：分位 ≥ ${P.bot_pct} 为「压力」，≤ 10 为「自满」，其余按利差在 200 日线上方 / 下方记「走阔」/「平稳」。</li>
+    <li><b>日历</b>：以纳指交易日为准。ICE 利差在美股休市日也有数，每个交易日取当日或之前最近一个值；利差在 FRED 上一般晚一天发布，所以最新一天可能还是前一天的利差。</li>
+    <li>参数都在 <code>signals.py</code> 顶部。改了参数，上面的历史表现会跟着重算——但那就是在同一段数据上再挑一次，样本内的成绩会更好看，不代表以后更准。</li>
+    ${SERIES.ccc_bb ? `<li><b>切换利差</b>：页面顶部可以在 CCC 利差和 CCC−BB 利差之间切换，两者用同一套规则与参数，图、读数、历史表现和逐次记录都跟着换。规则是按 CCC 定的。</li>` : ""}
+  </ul>`;
+}
+
+// 利差切换按钮（没有 BB 数据时整行隐藏）
+if (Object.keys(SERIES).length < 2) $("switch").style.display = "none";
+$("series").innerHTML = Object.entries(SERIES).map(([k, v]) => `<button data-k="${k}">${v.short}</button>`).join("");
+document.querySelectorAll("#series button").forEach((b) => b.addEventListener("click", () => {
+  if (b.dataset.k === KEY) return;
+  pick(b.dataset.k);
+  try { localStorage.setItem("ccc-series", KEY); } catch (e) {}
+  renderTop(); renderRules(); unhover(); draw(); renderStats();
+}));
+renderTop(); renderRules();
 </script>
 </body>
 </html>

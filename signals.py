@@ -26,7 +26,7 @@ DD_TOP, DD_LOOK = 0.11, 63          # 下跌顶：一年新高，之后 63 日�
 BOTTOM_DD, BOTTOM_HALF = 0.15, 63   # 底部：前后各 63 日的最低收盘，且比一年最高收盘低 15% 以上
 TOP_PRE, TOP_LEAD = 5, 126          # 见顶预警之后 126 日内（或之前 5 日内）出现下跌顶算抓到
 BOT_PRE, BOT_POST = 21, 42          # 见底预警落在底部前 21 日至后 42 日内算抓到
-FWD, FWD_LONG = 63, 126
+FWD, FWD_LONG = 63, 126              # 见顶预警主要看亮灯后 126 日内距最高收盘多远、最大跌多少；63 日收益只作参考
 
 
 # ---------------- 读数据 ----------------
@@ -55,6 +55,11 @@ def write_series(path, data, header):
         for k in sorted(data):
             w.writerow([k, ("%.4f" % data[k]).rstrip("0").rstrip(".")])
     os.replace(tmp, path)
+
+
+def diff_series(a, b):
+    """两个利差逐日相减（只取两边都有的日期），例如 CCC − BB。"""
+    return {d: a[d] - b[d] for d in a if d in b}
 
 
 def align(ccc, nas):
@@ -188,6 +193,11 @@ def _ret(N, i, k):
     return N[i + k] / N[i] - 1 if i + k < len(N) else None
 
 
+def _below_peak(N, i, k):
+    """当日收盘比之后 k 日内（含当日）最高收盘低多少：≤ 0，越接近 0 说明越接近顶部。"""
+    return N[i] / max(N[i:i + k + 1]) - 1 if i + k < len(N) else None
+
+
 def _min_ret(N, i, k):
     return min(N[i:i + k + 1]) / N[i] - 1 if i + k < len(N) else None
 
@@ -203,7 +213,7 @@ def evaluate(dates, S, N, r):
     for e in r["top_events"]:
         hit = [t for t in tops if -TOP_PRE <= t - e <= TOP_LEAD]
         top_rows.append({"i": e, "date": dates[e], "s": S[e], "ma200": r["ma200"][e], "dd": r["dd"][e],
-                         "fwd": _ret(N, e, FWD), "mdd": _min_ret(N, e, FWD_LONG),
+                         "fwd": _ret(N, e, FWD), "mdd": _min_ret(N, e, FWD_LONG), "below": _below_peak(N, e, FWD_LONG),
                          "hit": dates[hit[0]] if hit else None, "lead": hit[0] - e if hit else None,
                          "open": e + FWD_LONG >= len(N)})
     for e in r["bot_events"]:
@@ -225,7 +235,9 @@ def evaluate(dates, S, N, r):
                 "caught": sum(any(-TOP_PRE <= t - e <= TOP_LEAD for e in r["top_events"]) for t in tops),
                 "missed": [dates[t] for t in tops if not any(-TOP_PRE <= t - e <= TOP_LEAD for e in r["top_events"])],
                 "mdd": _mean([x["mdd"] for x in top_rows]), "fwd": _mean([x["fwd"] for x in top_rows]),
-                "base_mdd": _mean([_min_ret(N, i, FWD_LONG) for i in near]), "base_fwd": _mean([_ret(N, i, FWD) for i in near])},
+                "below": _mean([x["below"] for x in top_rows]),
+                "base_mdd": _mean([_min_ret(N, i, FWD_LONG) for i in near]), "base_fwd": _mean([_ret(N, i, FWD) for i in near]),
+                "base_below": _mean([_below_peak(N, i, FWD_LONG) for i in near])},
         "bot": {"n": len(bot_rows), "bottoms": len(bots),
                 "caught": sum(any(-BOT_PRE <= e - b <= BOT_POST for e in r["bot_events"]) for b in bots),
                 "missed": [dates[b] for b in bots if not any(-BOT_PRE <= e - b <= BOT_POST for e in r["bot_events"])],

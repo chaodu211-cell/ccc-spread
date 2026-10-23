@@ -1,6 +1,6 @@
 name: daily
 
-# 每个美股交易日的次日在美国机房拉 CCC 利差与纳指 → 重算 → 把 data/、信号快照.csv、ci_status.json 提交回 main。
+# 每个美股交易日的次日在美国机房拉 CCC 利差、BB 利差与纳指 → 重算 → 把 data/、信号快照.csv、ci_status.json 提交回 main。
 # 本地双击「更新并打开.command」会先 git pull，所以本机连不上 FRED 时也能拿到这里更新好的数据。
 #
 # FRED_API_KEY 放在仓库 Settings → Secrets and variables → Actions（2026-10-23 配好）。

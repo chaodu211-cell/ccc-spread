@@ -1,13 +1,14 @@
-"""下载 CCC 利差与纳指收盘，并入本地数据（只增补、不删旧历史）。
+"""下载 CCC 利差、BB 利差与纳指收盘，并入本地数据（只增补、不删旧历史）。
 
   CCC 利差  ICE BofA 美国 CCC 及以下高收益债 OAS（FRED: BAMLH0A3HYC，百分点）
+  BB 利差   ICE BofA 美国 BB 级高收益债 OAS（FRED: BAMLH0A1HYBB，百分点）——只用来算 CCC−BB
   纳指      纳斯达克综合指数收盘（FRED: NASDAQCOM；备用 Yahoo ^IXIC）
 
 每个序列按顺序试几个来源，第一个成功的为准，失败的原因全部记下来：
   1. FRED 官方 API —— 需要免费的 API key（环境变量 FRED_API_KEY，或同目录 fred_api_key.txt 里写一行）。
      这是 FRED 给程序用的正门，最稳；没有 key 就跳过。
   2. FRED 网页下载（fredgraph.csv）—— 不要 key，但对脚本请求时好时坏，有时直接断开。
-  3. 纳指另有 Yahoo 图表接口兜底。CCC 利差只有 FRED 一个免费来源。
+  3. 纳指另有 Yahoo 图表接口兜底。两个利差都只有 FRED 一个免费来源。
 本地连不上 FRED 时，还有一条路：GitHub 每日流水线在美国机房拉好数据提交进 data/，
 本地双击「更新并打开.command」会先 git pull 拿到它（需要这个文件夹是 git clone 下来的）。
 
@@ -32,8 +33,8 @@ from datetime import date, datetime, timedelta, timezone
 from signals import read_series, write_series
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-HEADER = {"ccc_oas": ["date", "ccc_oas_pct"], "nasdaq": ["date", "close"]}
-FRED_ID = {"ccc_oas": "BAMLH0A3HYC", "nasdaq": "NASDAQCOM"}
+HEADER = {"ccc_oas": ["date", "ccc_oas_pct"], "bb_oas": ["date", "bb_oas_pct"], "nasdaq": ["date", "close"]}
+FRED_ID = {"ccc_oas": "BAMLH0A3HYC", "bb_oas": "BAMLH0A1HYBB", "nasdaq": "NASDAQCOM"}
 UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 OVERLAP_DAYS = 120   # 每次往回多拉一段，接住修订
 SEED_START = "2016-01-01"
@@ -161,6 +162,7 @@ def src_yahoo(name, start):
 
 SOURCES = {
     "ccc_oas": [("FRED API", src_fred_api), ("FRED 网页", src_fred_csv)],
+    "bb_oas": [("FRED API", src_fred_api), ("FRED 网页", src_fred_csv)],
     "nasdaq": [("FRED API", src_fred_api), ("FRED 网页", src_fred_csv), ("Yahoo", src_yahoo)],
 }
 
