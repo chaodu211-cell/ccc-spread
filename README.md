@@ -3,7 +3,9 @@
 跟踪 ICE BofA 美国 CCC 及以下高收益债的期权调整利差（FRED: `BAMLH0A3HYC`），只看利差自身的技术形态，
 对纳斯达克综合指数给出两种提示：**见顶预警**（信用转坏、股价还在高位）和**见底预警**（信用恐慌开始回落）。
 
-双击 **`更新并打开.command`** 即可：从 FRED 拉最新数据 → 重算 → 打开网页。
+在线网页（GitHub 每个交易日自动更新）：https://chaodu211-cell.github.io/ccc-spread/
+
+本机双击 **`更新并打开.command`** 即可：从 FRED 拉最新数据 → 重算 → 打开网页。
 首次可能要右键 →「打开」放行一次（macOS 的隔离标记），之后直接双击。
 只用 macOS 自带的 `python3` 与 `curl`，**不需要安装任何依赖**；没有 python3 时按提示跑一次 `xcode-select --install`。
 

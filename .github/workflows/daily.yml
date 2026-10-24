@@ -18,6 +18,8 @@ on:
 
 permissions:
   contents: write
+  pages: write      # 发布 GitHub Pages
+  id-token: write   # deploy-pages 需要
 
 concurrency:
   group: daily
@@ -27,6 +29,10 @@ jobs:
   update:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # 网页发布到 https://chaodu211-cell.github.io/ccc-spread/（仓库 Settings → Pages → Source 选 GitHub Actions）
+    environment:
+      name: github-pages
+      url: ${{ steps.pages.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -68,3 +74,15 @@ jobs:
               print("::error::%s 下载失败：%s" % (k, e))
           sys.exit(1 if bad else 0)
           PY
+      # 放在提交之后：网页发布失败不影响数据入库；提交失败也照样发布（下载失败时 update.py 沿用旧数据照样出页面）
+      - name: 准备网页
+        if: ${{ !cancelled() }}
+        run: mkdir -p _site && cp dashboard.html _site/index.html
+      - uses: actions/upload-pages-artifact@v3
+        if: ${{ !cancelled() }}
+        with:
+          path: _site
+      - name: 发布网页
+        id: pages
+        if: ${{ !cancelled() }}
+        uses: actions/deploy-pages@v4
