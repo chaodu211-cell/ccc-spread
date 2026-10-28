@@ -1,39 +1,39 @@
 {
- "as_of": "2026-10-26",
- "generated": "2026-10-27 18:52",
+ "as_of": "2026-10-27",
+ "generated": "2026-10-28 19:03",
  "fetch": {
   "ccc_oas": {
    "series": "BAMLH0A3HYC",
-   "local_last": "2026-10-22",
+   "local_last": "2026-10-26",
    "tried": {},
    "ok": true,
    "source": "FRED API",
-   "last": "2026-10-26",
-   "added": 2,
+   "last": "2026-10-27",
+   "added": 1,
    "changed": 0,
-   "src_last": "2026-10-26"
+   "src_last": "2026-10-27"
   },
   "bb_oas": {
    "series": "BAMLH0A1HYBB",
-   "local_last": "2026-10-22",
+   "local_last": "2026-10-26",
    "tried": {},
    "ok": true,
    "source": "FRED API",
-   "last": "2026-10-26",
-   "added": 2,
+   "last": "2026-10-27",
+   "added": 1,
    "changed": 0,
-   "src_last": "2026-10-26"
+   "src_last": "2026-10-27"
   },
   "nasdaq": {
    "series": "NASDAQCOM",
-   "local_last": "2026-10-23",
+   "local_last": "2026-10-26",
    "tried": {},
    "ok": true,
    "source": "FRED API",
-   "last": "2026-10-26",
+   "last": "2026-10-27",
    "added": 1,
    "changed": 0,
-   "src_last": "2026-10-26"
+   "src_last": "2026-10-27"
   }
  },
  "top_today": false,
