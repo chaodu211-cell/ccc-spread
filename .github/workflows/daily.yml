@@ -35,6 +35,8 @@ jobs:
       url: ${{ steps.pages.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -81,8 +83,11 @@ jobs:
       - uses: actions/upload-pages-artifact@v3
         if: ${{ !cancelled() }}
         with:
+          name: github-pages-${{ github.run_attempt }}
           path: _site
       - name: 发布网页
         id: pages
         if: ${{ !cancelled() }}
         uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages-${{ github.run_attempt }}
