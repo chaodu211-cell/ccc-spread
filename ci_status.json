@@ -1,26 +1,26 @@
 {
- "as_of": "2026-11-05",
- "generated": "2026-11-06 20:03",
+ "as_of": "2026-11-06",
+ "generated": "2026-11-07 18:14",
  "fetch": {
   "ccc_oas": {
    "series": "BAMLH0A3HYC",
-   "local_last": "2026-11-04",
+   "local_last": "2026-11-05",
    "tried": {},
    "ok": true,
    "source": "FRED API",
    "last": "2026-11-05",
-   "added": 1,
+   "added": 0,
    "changed": 0,
    "src_last": "2026-11-05"
   },
   "bb_oas": {
    "series": "BAMLH0A1HYBB",
-   "local_last": "2026-11-04",
+   "local_last": "2026-11-05",
    "tried": {},
    "ok": true,
    "source": "FRED API",
    "last": "2026-11-05",
-   "added": 1,
+   "added": 0,
    "changed": 0,
    "src_last": "2026-11-05"
   },
@@ -30,13 +30,13 @@
    "tried": {},
    "ok": true,
    "source": "FRED API",
-   "last": "2026-11-05",
-   "added": 0,
+   "last": "2026-11-06",
+   "added": 1,
    "changed": 0,
-   "src_last": "2026-11-05"
+   "src_last": "2026-11-06"
   }
  },
  "top_today": false,
- "bot_today": true,
+ "bot_today": false,
  "phase": "压力"
 }
