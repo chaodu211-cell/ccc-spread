@@ -7,9 +7,14 @@ name: daily
 # 必须有：2026-10-23 实测 GitHub 机房上 FRED 网页下载会被断开、Yahoo 返回 429，只有官方 API 能用。
 on:
   schedule:
-    # 13:37 UTC = 北京 21:37 = 美东 09:37（夏令时）/ 08:37（冬令时）。ICE 利差在 FRED 上一般晚一天发布，
-    # 这时前一交易日的数已齐。周二到周六各跑一次，正好覆盖周一到周五。分钟取 37 避开整点排队。
-    - cron: "37 13 * * 2-6"
+    # 纽约时间：00:37 提前排队，08:17 盘前再查，11:27 补取可能在开盘后发布的 ICE 利差。
+    # 周一覆盖上周五。FRED 尚未发布时，页面沿用最近已发布的利差。
+    - cron: "37 0 * * 1-5"
+      timezone: "America/New_York"
+    - cron: "17 8 * * 1-5"
+      timezone: "America/New_York"
+    - cron: "27 11 * * 1-5"
+      timezone: "America/New_York"
   # 改了代码就跑一次（机器人提交的数据文件与文档不触发；GITHUB_TOKEN 的推送本来也不会再触发工作流）
   push:
     branches: [main]
