@@ -1,6 +1,6 @@
 {
- "as_of": "2026-11-16",
- "generated": "2026-11-17 23:34",
+ "as_of": "2026-11-17",
+ "generated": "2026-11-18 14:28",
  "fetch": {
   "ccc_oas": {
    "series": "BAMLH0A3HYC",
@@ -30,10 +30,10 @@
    "tried": {},
    "ok": true,
    "source": "FRED API",
-   "last": "2026-11-16",
-   "added": 0,
+   "last": "2026-11-17",
+   "added": 1,
    "changed": 0,
-   "src_last": "2026-11-16"
+   "src_last": "2026-11-17"
   }
  },
  "top_today": false,
