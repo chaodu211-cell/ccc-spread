@@ -1,31 +1,9 @@
 {
  "as_of": "2026-11-17",
- "generated": "2026-11-18 14:28",
+ "generated": "2026-11-18 21:28",
  "fetch": {
   "ccc_oas": {
    "series": "BAMLH0A3HYC",
-   "local_last": "2026-11-16",
-   "tried": {},
-   "ok": true,
-   "source": "FRED API",
-   "last": "2026-11-16",
-   "added": 0,
-   "changed": 0,
-   "src_last": "2026-11-16"
-  },
-  "bb_oas": {
-   "series": "BAMLH0A1HYBB",
-   "local_last": "2026-11-16",
-   "tried": {},
-   "ok": true,
-   "source": "FRED API",
-   "last": "2026-11-16",
-   "added": 0,
-   "changed": 0,
-   "src_last": "2026-11-16"
-  },
-  "nasdaq": {
-   "series": "NASDAQCOM",
    "local_last": "2026-11-16",
    "tried": {},
    "ok": true,
@@ -34,9 +12,31 @@
    "added": 1,
    "changed": 0,
    "src_last": "2026-11-17"
+  },
+  "bb_oas": {
+   "series": "BAMLH0A1HYBB",
+   "local_last": "2026-11-16",
+   "tried": {},
+   "ok": true,
+   "source": "FRED API",
+   "last": "2026-11-17",
+   "added": 1,
+   "changed": 0,
+   "src_last": "2026-11-17"
+  },
+  "nasdaq": {
+   "series": "NASDAQCOM",
+   "local_last": "2026-11-17",
+   "tried": {},
+   "ok": true,
+   "source": "FRED API",
+   "last": "2026-11-17",
+   "added": 0,
+   "changed": 0,
+   "src_last": "2026-11-17"
   }
  },
  "top_today": false,
  "bot_today": false,
- "phase": "走阔"
+ "phase": "压力"
 }
