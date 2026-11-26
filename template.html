@@ -132,6 +132,7 @@ tr:last-child td { border-bottom: 0; }
   <div class="eyebrow">ICE BofA CCC &amp; Lower OAS × Nasdaq Composite</div>
   <h1>CCC 垃圾债利差 · 见顶 / 见底预警</h1>
   <div class="sub" id="sub"></div>
+  <div class="sub" id="signal-status"></div>
   <div id="banner"></div>
   <div class="switch" id="switch"><div class="seg" id="series"></div><span class="sub" id="series-note"></span></div>
 
@@ -233,12 +234,17 @@ const phaseNote = { "压力": "利差在一年里的 95 分位以上", "自满":
 const li = (ok, label, detail) => `<li><span class="mark ${ok ? "ok" : "no"}">${ok ? "✓" : ""}</span><span class="${ok ? "ok" : "no"}"><b>${label}</b>${detail ? "　" + detail : ""}</span></li>`;
 const lastTxt = (e, name) => e ? `最近一次${name}：${e.date}（${e.ago} 个交易日前）` : `历史上还没有${name}`;
 function renderTop() {
-  $("sub").textContent = `数据截至 ${C.date}（纳指交易日）· ${D.short}最新 ${D.latest.date} ${f2(D.latest.v)}% · 页面生成于 ${D.generated}`;
+  const nas = D.nas_latest;
+  const spreadUnit = KEY === "ccc" ? "%" : " 个百分点";
+  $("sub").textContent = `${D.short}最新 ${D.latest.date} ${f2(D.latest.v)}${spreadUnit} · 纳指最新收盘 ${nas.date} ${f2(nas.v)} · 页面生成于 ${D.generated}`;
+  const waiting = nas.date > D.latest.date ? ` · 等待 ${nas.date} 的${D.short}发布` :
+    (D.latest.date > nas.date ? " · 最新利差日期尚无同日纳指收盘" : "");
+  $("signal-status").textContent = `预警计算截至 ${C.date}${waiting}`;
   $("series-note").textContent = D.note;
   $("spread-title").textContent = D.title;
   document.querySelectorAll("#series button").forEach((b) => b.classList.toggle("on", b.dataset.k === KEY));
   $("cards").innerHTML =
-    card(D.short, f2(C.s) + "%", `20 日变化 ${C.chg20 == null ? "—" : (C.chg20 >= 0 ? "+" : "") + C.chg20.toFixed(2)} 个百分点`) +
+    card(D.short, f2(C.s) + spreadUnit, `20 日变化 ${C.chg20 == null ? "—" : (C.chg20 >= 0 ? "+" : "") + C.chg20.toFixed(2)} 个百分点`) +
     card("252 日分位", C.pct == null ? "—" : C.pct.toFixed(0), `阶段：${C.phase} · ${phaseNote[C.phase] || ""}`) +
     card("相对 200 日均线", pctf(C.gap200), `200 日均线 ${f2(C.ma200)}%`) +
     card("纳斯达克综合", num(C.n), `距一年最高收盘 ${pctf(C.dd)}`);
@@ -247,15 +253,15 @@ function renderTop() {
   const topOn = C.top_today, botOn = C.bot_today;
   $("sig").innerHTML =
     `<div class="card ${topOn ? "on-top" : ""}"><div class="title"><span class="ico-top">▼</span>见顶预警
-       <span class="badge ${topOn ? "on-top" : "off"}">${topOn ? "▼ 今日触发" : (C.top_raw_today ? "条件满足（冷却期内）" : "未触发")}</span></div>
+       <span class="badge ${topOn ? "on-top" : "off"}">${topOn ? "▼ 当日触发" : (C.top_raw_today ? "条件满足（冷却期内）" : "未触发")}</span></div>
      <ul class="conds">
-       ${li(tc.cross, "利差今日上穿 200 日均线", tc.above ? "（利差已在线上方，上穿发生在之前）" : "（利差在线下方）")}
+       ${li(tc.cross, "利差当日上穿 200 日均线", tc.above && !tc.cross ? "（利差已在线上方，上穿发生在之前）" : "")}
        ${li(tc.near, `纳指距一年高点不到 ${(P.top_near * 100).toFixed(0)}%`, `（现在 ${pctf(C.dd)}）`)}
      </ul>
      ${C.above_since && tc.near ? `<div class="last"><b style="color:var(--text)">背离持续中</b>：利差自 ${C.above_since.date} 起连续 ${C.above_since.days} 个交易日在 200 日线上方，纳指仍在高点 ${(P.top_near * 100).toFixed(0)}% 以内。规则只在上穿那天报一次，这段时间不会重复亮灯。</div>` : ""}
      <div class="last">${lastTxt(C.last_top, "见顶预警")}</div></div>` +
     `<div class="card ${botOn ? "on-bot" : ""}"><div class="title"><span class="ico-bot">▲</span>见底预警
-       <span class="badge ${botOn ? "on-bot" : "off"}">${botOn ? "▲ 今日触发" : (C.bot_raw_today ? "条件满足（冷却期内）" : "未触发")}</span></div>
+       <span class="badge ${botOn ? "on-bot" : "off"}">${botOn ? "▲ 当日触发" : (C.bot_raw_today ? "条件满足（冷却期内）" : "未触发")}</span></div>
      <ul class="conds">
        ${li(bc.panic, `${P.bot_look} 日内利差曾到 ${P.bot_pct} 分位以上`, `（${P.bot_look} 日内最高 ${C.panic_max20 == null ? "—" : C.panic_max20.toFixed(0)}）`)}
        ${li(bc.below, `利差跌破 ${P.bot_ma} 日均线`, "")}

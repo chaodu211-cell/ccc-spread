@@ -1,5 +1,9 @@
 """计算核心的自检（只用标准库）：python3 test_signals.py"""
 import unittest
+from datetime import datetime
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from unittest.mock import Mock, patch
 
 import fetch
 import signals as G
@@ -72,9 +76,49 @@ class TestSeries(unittest.TestCase):
         self.assertEqual(len(x["s"]), len(data["d"]))
         only, _ = make_page.build(ccc, nas, {})
         self.assertEqual(list(only["series"]), ["ccc"])
+        day = days[-1]
+        bb_without_latest = {d: bb[d] for d in days[:-1]}
+        data, _ = make_page.build(ccc, nas, {}, bb_without_latest)
+        self.assertEqual(data["nas_latest"]["date"], day)
+        self.assertEqual(data["series"]["ccc"]["cur"]["date"], day)
+        self.assertEqual(data["series"]["ccc_bb"]["cur"]["date"], days[-2])
+        self.assertIsNone(data["series"]["ccc_bb"]["s"][-1])
+
+        ccc_without_latest = {d: ccc[d] for d in days[:-1]}
+        data, _ = make_page.build(ccc_without_latest, nas, {}, bb)
+        self.assertEqual(data["series"]["ccc"]["cur"]["date"], days[-2])
+        self.assertEqual(data["series"]["ccc_bb"]["cur"]["date"], days[-2])
+        self.assertEqual(data["d"][-1], day)
+        self.assertIsNone(data["series"]["ccc"]["s"][-1])
 
 
 class TestFetch(unittest.TestCase):
+    def test_nasdaq_checks_fallback_when_fred_is_behind(self):
+        old = {"2026-11-19": 23879.20}
+        fri, mon = "2026-11-20", "2026-11-23"
+        api = Mock(return_value={**old, fri: 22617.73})
+        csv = Mock(side_effect=RuntimeError("下载失败"))
+        yahoo = Mock(return_value={**old, fri: 22600.00, mon: 24089.56})
+        sources = {"nasdaq": [("FRED API", api), ("FRED 网页", csv), ("Yahoo", yahoo)]}
+        with TemporaryDirectory() as work:
+            G.write_series(str(Path(work) / "data/nasdaq.csv"), old, fetch.HEADER["nasdaq"])
+            with patch.object(fetch, "HERE", work), patch.object(fetch, "SOURCES", sources), \
+                 patch.object(fetch, "nasdaq_target", return_value=mon):
+                st = fetch.update(ci=True, log=lambda _: None)["nasdaq"]
+                csv.assert_called_once()
+                yahoo.assert_called_once()
+                self.assertEqual(st["source"], "FRED API + Yahoo")
+                self.assertEqual(st["src_last"], mon)
+                self.assertEqual(fetch.load_local("nasdaq"), {**old, fri: 22617.73, mon: 24089.56})
+                api.return_value = {**old, fri: 22617.73, mon: 24089.56}
+                yahoo.reset_mock()
+                fetch.update(ci=True, log=lambda _: None)
+                yahoo.assert_not_called()
+
+    def test_nasdaq_target_before_and_after_close(self):
+        self.assertEqual(fetch.nasdaq_target(datetime(2026, 11, 23, 9)), "2026-11-20")
+        self.assertEqual(fetch.nasdaq_target(datetime(2026, 11, 23, 18)), "2026-11-23")
+
     def test_parse_fred(self):
         txt = "observation_date,BAMLH0A3HYC\n2026-10-19,13.10\n2026-10-20,.\n2026-10-21,\n2026-10-22,13.30\n"
         self.assertEqual(fetch.parse_fred(txt), {"2026-10-19": 13.1, "2026-10-22": 13.3})

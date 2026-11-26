@@ -4,11 +4,11 @@
   BB 利差   ICE BofA 美国 BB 级高收益债 OAS（FRED: BAMLH0A1HYBB，百分点）——只用来算 CCC−BB
   纳指      纳斯达克综合指数收盘（FRED: NASDAQCOM；备用 Yahoo ^IXIC）
 
-每个序列按顺序试几个来源，第一个成功的为准，失败的原因全部记下来：
+每个序列按顺序试几个来源，失败的原因全部记下来：
   1. FRED 官方 API —— 需要免费的 API key（环境变量 FRED_API_KEY，或同目录 fred_api_key.txt 里写一行）。
      这是 FRED 给程序用的正门，最稳；没有 key 就跳过。
   2. FRED 网页下载（fredgraph.csv）—— 不要 key，但对脚本请求时好时坏，有时直接断开。
-  3. 纳指另有 Yahoo 图表接口兜底。两个利差都只有 FRED 一个免费来源。
+  3. 纳指另有 Yahoo 图表接口兜底。纳指主源落后时也尝试备用源，只补更晚的收盘。两个利差都只有 FRED 一个免费来源。
 本地连不上 FRED 时，还有一条路：GitHub 每日流水线在美国机房拉好数据提交进 data/，
 本地双击「更新并打开.command」会先 git pull 拿到它（需要这个文件夹是 git clone 下来的）。
 
@@ -28,7 +28,8 @@ import subprocess
 import time
 import urllib.parse
 import urllib.request
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, time as clock_time, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 from signals import read_series, write_series
 
@@ -40,6 +41,9 @@ OVERLAP_DAYS = 120   # 每次往回多拉一段，接住修订
 SEED_START = "2016-01-01"
 MAX_JUMP = 0.25      # 同一天新旧值相差超过 25% 视为下错了数据，整次不并入
 CONNECT_TIMEOUT, TIMEOUT, TRIES = 15, 45, 2
+FRED_TZ = ZoneInfo("America/Chicago")
+MARKET_TZ = ZoneInfo("America/New_York")
+REVALIDATE = {"Cache-Control": "no-cache"}
 
 
 # ---------------- 网络 ----------------
@@ -144,14 +148,18 @@ def src_fred_api(name, start):
     key = fred_key()
     if not key:
         return None
-    q = urllib.parse.urlencode({"series_id": FRED_ID[name], "api_key": key, "file_type": "json", "observation_start": start})
-    return parse_fred_api(_get("https://api.stlouisfed.org/fred/series/observations?" + q))
+    end = datetime.now(FRED_TZ).date().isoformat()
+    q = urllib.parse.urlencode({"series_id": FRED_ID[name], "api_key": key, "file_type": "json",
+                                "observation_start": start, "observation_end": end})
+    return parse_fred_api(_get("https://api.stlouisfed.org/fred/series/observations?" + q, REVALIDATE))
 
 
 def src_fred_csv(name, start):
     sid = FRED_ID[name]
-    return parse_fred(_get("https://fred.stlouisfed.org/graph/fredgraph.csv?id=%s&cosd=%s" % (sid, start),
-                           {"Referer": "https://fred.stlouisfed.org/series/" + sid}))
+    end = datetime.now(FRED_TZ).date().isoformat()
+    q = urllib.parse.urlencode({"id": sid, "cosd": start, "coed": end})
+    return parse_fred(_get("https://fred.stlouisfed.org/graph/fredgraph.csv?" + q,
+                           {**REVALIDATE, "Referer": "https://fred.stlouisfed.org/series/" + sid}))
 
 
 def src_yahoo(name, start):
@@ -165,6 +173,15 @@ SOURCES = {
     "bb_oas": [("FRED API", src_fred_api), ("FRED 网页", src_fred_csv)],
     "nasdaq": [("FRED API", src_fred_api), ("FRED 网页", src_fred_csv), ("Yahoo", src_yahoo)],
 }
+
+
+def nasdaq_target(now=None):
+    """最近可能已有收盘的日期。休市日只多试备用源，以数据源提供的实际收盘为准。"""
+    now = now if now is not None else datetime.now(MARKET_TZ)
+    target = now.date() - timedelta(days=int(now.time() < clock_time(16, 15)))
+    while target.weekday() >= 5:
+        target -= timedelta(days=1)
+    return target.isoformat()
 
 
 # ---------------- 合并 ----------------
@@ -196,20 +213,32 @@ def update(ci=False, log=print):
         last = max(local) if local else None
         start = (date.fromisoformat(last) - timedelta(days=OVERLAP_DAYS)).isoformat() if last else SEED_START
         st = {"series": FRED_ID[name], "local_last": last, "tried": {}}
+        target = nasdaq_target() if name == "nasdaq" else None
+        observations, labels = {}, []
         for label, fn in SOURCES[name]:
             try:
                 new = fn(name, start)
                 if new is None:
                     continue
-                merged, added, changed = merge(local, new)
+                merge(local, new)  # 备用源也要与历史重叠值核验
             except Exception as e:  # noqa: BLE001
                 key = fred_key()
                 st["tried"][label] = str(e).replace(key, "***") if key else str(e)
                 continue
+            previous = max(observations, default="")
+            if max(new) > previous:
+                observations.update({d: v for d, v in new.items() if d > previous})
+                labels.append(label)
+            if target is None or max(previous, max(new), last or "") >= target:
+                break
+        if observations:
+            merged, added, changed = merge(local, observations)
             write_series(os.path.join(HERE, "data" if ci else "cache", name + ".csv"), merged, HEADER[name])
-            st.update(ok=True, source=label, last=max(merged), added=added, changed=changed, src_last=max(new))
-            log("  %-10s 成功（%s）：最新 %s，新增 %d 天、修订 %d 天" % (FRED_ID[name], label, max(new), added, changed))
-            break
+            source, src_last = " + ".join(labels), max(observations)
+            st.update(ok=True, source=source, last=max(merged), added=added, changed=changed, src_last=src_last)
+            log("  %-10s 成功（%s）：最新 %s，新增 %d 天、修订 %d 天" % (FRED_ID[name], source, src_last, added, changed))
+            if target and st["last"] < target:
+                log("      最近可用纳指收盘仍为 %s（已尝试备用源）" % st["last"])
         else:
             st.update(ok=False, last=last, error="；".join("%s：%s" % kv for kv in st["tried"].items()))
             log("  %-10s 失败，沿用本地数据（最新 %s）" % (FRED_ID[name], last))

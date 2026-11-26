@@ -24,7 +24,10 @@ SERIES = {
 
 def _block(key, sp, nas):
     """一个利差序列的指标、信号、事后评估与当前读数。"""
-    dates, S, N = G.align(sp, nas)
+    sd = max(sp)
+    dates, aligned, N = G.align(sp, nas)
+    # 保留历史对齐规则。利差发布之前，最新纳指交易日只在纳指图上显示。
+    S = [s if d <= sd else None for d, s in zip(dates, aligned)]
     r = G.compute(dates, S, N)
     top_rows, bot_rows, summary = G.evaluate(dates, S, N, r)
     last = max(i for i in range(len(dates)) if S[i] is not None)
@@ -50,7 +53,6 @@ def _block(key, sp, nas):
     }
     # 页面时间轴从三项指标（200 日线、252 日分位、一年高点）都有读数的那天开始，前面只是预热
     start = next(i for i in range(len(dates)) if None not in (r["ma200"][i], r["pct"][i], r["dd"][i]))
-    sd = max(sp)
     block = dict(SERIES[key], latest={"date": sd, "v": sp[sd]},
                  s=[_r(x, 3) for x in S], ma200=[_r(x, 3) for x in r["ma200"]], pct=[_r(x, 1) for x in r["pct"]],
                  top_events=[dict(x) for x in top_rows], bot_events=[dict(x) for x in bot_rows],

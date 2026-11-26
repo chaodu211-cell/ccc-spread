@@ -7,13 +7,17 @@ name: daily
 # 必须有：2026-10-23 实测 GitHub 机房上 FRED 网页下载会被断开、Yahoo 返回 429，只有官方 API 能用。
 on:
   schedule:
-    # 纽约时间：00:37 提前排队，08:17 盘前再查，11:27 补取可能在开盘后发布的 ICE 利差。
+    # 纽约时间：夜间、盘前、午间、下午及收盘后检查，覆盖各序列不同的发布时间。
     # 周一覆盖上周五。FRED 尚未发布时，页面沿用最近已发布的利差。
     - cron: "37 0 * * 1-5"
       timezone: "America/New_York"
     - cron: "17 8 * * 1-5"
       timezone: "America/New_York"
     - cron: "27 11 * * 1-5"
+      timezone: "America/New_York"
+    - cron: "37 14 * * 1-5"
+      timezone: "America/New_York"
+    - cron: "37 19 * * 1-5"
       timezone: "America/New_York"
   # 改了代码就跑一次（机器人提交的数据文件与文档不触发；GITHUB_TOKEN 的推送本来也不会再触发工作流）
   push:
@@ -33,11 +37,11 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     # 网页发布到 https://chaodu211-cell.github.io/ccc-spread/（仓库 Settings → Pages → Source 选 GitHub Actions）
     environment:
       name: github-pages
-      url: ${{ steps.pages.outputs.page_url }}
+      url: ${{ steps.pages.outputs.page_url || steps.pages_retry.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -86,13 +90,28 @@ jobs:
         if: ${{ !cancelled() }}
         run: mkdir -p _site && cp dashboard.html _site/index.html
       - uses: actions/upload-pages-artifact@v3
+        id: pages_artifact
         if: ${{ !cancelled() }}
         with:
           name: github-pages-${{ github.run_attempt }}
           path: _site
+      # Actions 的部署服务有时在上传完成后仍查不到产物。稍等再发布；失败时用同一份产物补试一次。
+      - name: 等待网页产物可见
+        if: ${{ !cancelled() && steps.pages_artifact.outcome == 'success' }}
+        run: sleep 15
       - name: 发布网页
         id: pages
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.pages_artifact.outcome == 'success' }}
+        continue-on-error: true
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages-${{ github.run_attempt }}
+      - name: 等待后重试发布
+        if: ${{ !cancelled() && steps.pages.outcome == 'failure' }}
+        run: sleep 45
+      - name: 重试发布网页
+        id: pages_retry
+        if: ${{ !cancelled() && steps.pages.outcome == 'failure' }}
         uses: actions/deploy-pages@v4
         with:
           artifact_name: github-pages-${{ github.run_attempt }}
