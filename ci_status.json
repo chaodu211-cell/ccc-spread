@@ -1,6 +1,6 @@
 {
  "as_of": "2026-11-24",
- "generated": "2026-11-26 06:16",
+ "generated": "2026-11-26 15:39",
  "fetch": {
   "ccc_oas": {
    "series": "BAMLH0A3HYC",
@@ -26,12 +26,12 @@
   },
   "nasdaq": {
    "series": "NASDAQCOM",
-   "local_last": "2026-11-24",
+   "local_last": "2026-11-25",
    "tried": {},
    "ok": true,
    "source": "FRED API",
    "last": "2026-11-25",
-   "added": 1,
+   "added": 0,
    "changed": 0,
    "src_last": "2026-11-25"
   }
